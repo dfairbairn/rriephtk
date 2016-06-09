@@ -17,8 +17,7 @@ from datetime import datetime
 import numpy as np
 
 import timeit
-
-#radars = davitpy.pydarn.network()
+import math
 
 # Creating an FOV
 site = pydarn.radar.site(code='inv')
@@ -27,22 +26,6 @@ myFov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',coords='geo'
 # Taking Long/Lat values from corners of the FOV
 rlons,rlats=(np.array(myFov.lonFull)+360.)%360.0,np.array(myFov.latFull)
 # np.shape((rlons,rlats)) #(2,17,76) 
-centerpt = (rlons[0][0],rlats[0][0])
-left = (rlons[0][75],rlats[0][75])
-right = (rlons[16][75],rlats[16][75])
-
-# Ashton code for extracting beam and gate from lat/lon
-
-# Fixed point using default radar (sas)
-#beams,gates = range_cells.findRangeCell([60.0],[-90])
-#beams,gates = range_cells.findRangeCell([60.0,64.0],[-90,-100])
-#print beams,gates
-
-# Using an array of lats and lons, and for a specific radar ('rkn')
-# Note: the lats and lons aren't realistic: they're actually from PyDarn
-#import range_cells
-#beams,gates = range_cells.findRangeCell(lats,lons, myFov=myFov)
-
 
 # ANGELINE BURRELL COORDS->RG CODE
 import rgCoords
@@ -89,17 +72,13 @@ import h5py
 f = h5py.File(dat_fname)
 geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
 geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
+ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
 
 print "First Geographic Longitude: " + str(geog_longs[0])
 print "First Geographic Latitude: " + str(geog_lats[0])
 
-# Running Ashton's code for fun
-import range_cells
-#beams,gates = range_cells.findRangeCell([geog_lats[0]],[geog_longs[0]]) #for now just the first lat and long
-start = timeit.default_timer()
-beams,gates = range_cells.findRangeCell([0],[0],myFov=myFov)
-end = timeit.default_timer()
-print "Ashton code for one lat/lon pair took: " + str(end-start) + " seconds."
+# Also, extract timef or each longitude and latitude data measurement
+
 
 """
 ---------------------------------- PART 2 --------------------------------------
@@ -117,11 +96,9 @@ any of the radar stations.
 # for the given latitude-longitude pair
 import rgCoords
 
-# Time the brute-force method
-start = timeit.default_timer()
-
 """ # Using script to go through 11 lat/lon pairs with Angeline Code
 # Now, spin through each operational radar and test if it reaches (0,0)
+start = timeit.default_timer() # For showing timing
 nw = pydarn.radar.network()
 results = dict()
 lat_subset = geog_lats[0:10]
@@ -131,34 +108,68 @@ for rad in nw.radars:
         bm,gt,view=rgCoords.pos_to_rg(lat_subset,lon_subset,alt=300.0,
 coords="geo",dtime=datetime(2016,04,01),frang=180.0,rsep=45.0,rad_id=rad.id) 
         results[rad.name]=(bm,gt,view)
+
+for item in results.items():
+    print item
+
+# Takes 49 seconds doing the full brute-force calculations with input of (0,0)
+# show results. For (0,0) input, no radar should reach it (maybe azores could).
+# Doing 11 samples from Ephemeris data, takes 65.7 seconds.
 """
 
-# Using script to go through 11 lat/lon pairs with Ashton code
+# Approach 2: brute force by running Ashton's code twice per radar (for both 
+# the front and back views)
+import range_cells
 nw = pydarn.radar.network()
 results = dict()
 lat_subset = geog_lats[0:10]
 lon_subset = geog_longs[0:10]
+#lat_subset = [0]
+#lon_subset = [0]
+relevant_radars = dict()
+
+start_t = timeit.default_timer()
 for rad in nw.radars:
     if rad.status == 1:
         fov_f = davitpy.pydarn.radar.radFov.fov(site=rad.sites[0],altitude=300.,
             model='IS',coords='geo',ngates=75,fov_dir='front')
-        bm_f,gt_f=range_cells.findRangeCell(lat_subset,lon_subset,fov_f)
+        bm_f,gt_f=range_cells.findRangeCell(lat_subset,lon_subset,fov_f)        
 
         fov_b = davitpy.pydarn.radar.radFov.fov(site=rad.sites[0],altitude=300.,
             model='IS',coords='geo',ngates=75,fov_dir='back')
         bm_b,gt_b= range_cells.findRangeCell(lat_subset,lon_subset,fov_b)
+
         results[rad.name]=(bm_f,gt_f,bm_b,gt_b)
 
- 
-end = timeit.default_timer()
-print "Time required to compute detailed intersections by brute force: " + \
-    str(end - start) + " seconds."
+        # non_nan_X contains indices of items that aren't nan (ie. within fov)
+        non_nan_f = [n for n in range(np.size(bm_f)) if not math.isnan(bm_f[n])]        
+        non_nan_b = [n for n in range(np.size(bm_b)) if not math.isnan(bm_b[n])]
+        
+        if (non_nan_b.__len__() > 0):
+            start = non_nan_b[0]
+            end = non_nan_b[ non_nan_b.__len__() - 1 ] 
+            relevant_radars[rad.name + " (back)"] = (ephem_times[start],
+                bm_b[start],gt_b[start],ephem_times[end],bm_b[end],gt_b[end])
 
-# Takes 49 seconds doing the full brute-force calculations with input of (0,0)
-# show results. For (0,0) input, no radar should reach it (maybe azores could).
-for item in results.items():
-    print item
-    
+        if (non_nan_f.__len__() > 0):
+            start = non_nan_f[0]
+            end = non_nan_f[ non_nan_f.__len__() - 1 ]
+            #print str(non_nan_f) + ": end index is: " + str(end)
+
+            relevant_radars[rad.name + " (front)"] = (ephem_times[start],
+                bm_f[start],gt_f[start],ephem_times[end],bm_f[end],gt_f[end])
+            #print relevant_radars[rad.name + " (front)"]
+
+end_t = timeit.default_timer()
+print "Time required to compute detailed intersections by brute force: " + \
+    str(end_t - start_t) + " seconds."
+
+# In general there will be a post-processing step in which only the conjunction
+# results will be included in the output
+
+# Output results to show things off:
+for r in relevant_radars:
+    print r + ': ' + str(relevant_radars[r])
 
 
 
