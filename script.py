@@ -181,12 +181,38 @@ Having determined radars, beams, gates, grab the relevant data files (errlog &
 perhaps more?) to include here.
 
 Generate or grab a plot showing the satellite's track overlaid vs the superdarn
-beams?
-
+beams?  
 
 """
 
+# Ephemeris MET timing data is in the awkward format of 'seconds since May 24 1968'
+# The current time can be converted to a similar number by doing as follows:
+# i) Use the date command in Bashs option to give # of seconds since Epoch (1970 Jan 1st)
+t1 = subprocess.check_output(["date", "+%s"])
+t1 = int(t1.split("\n",1)[0]) # extract the integer value
 
+# ii) Check the seconds between May 24 1968 and Jan 1 1970 (neg number)
+t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+t2 = int(t2.split("\n",1)[0]) # extract the integer value
+
+# iii) Take the difference
+t = t1-t2
+
+
+# To convert Ephemeris data, we can do the opposite:
+t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+t_epoch_eph = int(t2.split("\n",1)[0])
+
+t_sec = t_epoch_eph + int(ephem_times[0]
+sample_start = datetime.utcfromtimestamp(t_sec)
+
+
+rad_codes
+fname = str(sample_start[0]) + str(sample_start[1]) + str(sample_start[2]) + "." + \
+    "rkn" + ".errlog.bz2"
+tstring = str(sample_start[3]) + ":" +  str(sample_start[4]) + ":00"
+
+from script_utils import *
 
 
 
