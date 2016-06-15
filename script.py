@@ -11,6 +11,8 @@ Date: May 2016
 import os
 import subprocess
 
+import logging
+
 import davitpy
 from davitpy import pydarn
 from datetime import datetime
@@ -19,6 +21,34 @@ import numpy as np
 import timeit
 import math
 
+"""
+The user can provide an argument specifying the RRI data file, or by default
+the script will use the RRI file for April 1st of 2016.
+
+If an argument is provided alongside the script specifying an RRI file, 
+
+"""
+import sys
+if sys.argv.__len__() == 2 and isinstance(sys.argv[1], str):
+    dat_fname = sys.argv[1]
+else:
+    print "No RRI file specified - going with default..."
+    dat_fname = "/home/david/pyth_stuff/script/data/RRI_20160401_072714_073111_lv1_v1.h5" # An RRI data file
+
+# Remotely accessing data on Maxwell.
+# The sshfs tool is used to mount Maxwell's data directory locally.
+# First, the script unmounts anything currently already mounted in the mounting
+# directory (using os.system so that if nothing is there it doesnt crash the 
+# script).
+
+import os
+os.system("fusermount -uq ./data/remote/")
+print "Accessing data files on maxwell, enter your password: "
+output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
+
+
+# Some extra code tidbits that can be deleted when I want
+
 # Creating an FOV
 site = pydarn.radar.site(code='inv')
 myFov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',coords='geo',ngates=75)
@@ -26,15 +56,6 @@ myFov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',coords='geo'
 # Taking Long/Lat values from corners of the FOV
 rlons,rlats=(np.array(myFov.lonFull)+360.)%360.0,np.array(myFov.latFull)
 # np.shape((rlons,rlats)) #(2,17,76) 
-
-# ANGELINE BURRELL COORDS->RG CODE
-import rgCoords
-
-dtime=datetime(2011,06,01)
-# rg_gate: range gates, bmnum: beam numbers, fovflg: flag showing forward FOV or back lobe
-# NOTE: rlats and rlons currently are actually lat/lon coords meant for 
-#       checking FOV containment, not for being contained themselves. JUST A TEST
-#rg_gate,bmnum,fovflg = rgCoords.pos_to_rg(rlats[7],rlons[7],coords='geo',alt=300.0,dtime=dtime,frang=180.0,rsep=45.0,rad_code='sas')
 
 
 """
@@ -47,25 +68,6 @@ First, the script takes the HDF5 file of interest and grabs its Ephemeris data.
 """
 
 # Running commands to grab Ephemeris Data from RRI HDF5 file.
-# 
-#
-
-# A now-unnecessary bit of code to generate new data files (and not overwrite)
-newfile = "data/output/tmp_ephem.dat" 
-tmp_fname = newfile
-i = 0
-while (os.path.isfile(tmp_fname)):
-    i+=1
-    tmp_fname = newfile + str(i)
-
-# For now, data file assumed to be in a fixed location. #TODO: custom paths
-dat_fname = "/home/david/pyth_stuff/script/data/RRI_20160401_072714_073111_lv1_v1.h5" # An RRI data file
-
-# This bash command is now superfluous, because we use h5py to get data 
-bashCmd = "h5dump -d CASSIOPE\ Ephemeris/Geographic\ Longitude\ \(deg\) " + dat_fname
-os.system(bashCmd + " >> " + tmp_fname)
-
-# Need to use: subprocess library (e.g. subprocess.call())
 
 # Extracting longitude and latitude data from RRI ephemeris.
 import h5py
@@ -74,10 +76,11 @@ geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
 geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
 ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
 
+from script_utils import *
+times = ephems_to_datetime(ephem_times)
+
 print "First Geographic Longitude: " + str(geog_longs[0])
 print "First Geographic Latitude: " + str(geog_lats[0])
-
-# Also, extract timef or each longitude and latitude data measurement
 
 
 """
@@ -122,14 +125,18 @@ for item in results.items():
 import range_cells
 nw = pydarn.radar.network()
 results = dict()
-lat_subset = geog_lats[0:10]
-lon_subset = geog_longs[0:10]
+lat_subset = geog_lats#[0:10]
+lon_subset = geog_longs#[0:10]
 #lat_subset = [0]
 #lon_subset = [0]
 relevant_radars = dict()
 
 start_t = timeit.default_timer()
 for rad in nw.radars:
+    # Show progress on screen
+    sys.stdout.write(".")
+    sys.stdout.flush()
+
     if rad.status == 1:
         fov_f = davitpy.pydarn.radar.radFov.fov(site=rad.sites[0],altitude=300.,
             model='IS',coords='geo',ngates=75,fov_dir='front')
@@ -146,28 +153,26 @@ for rad in nw.radars:
         non_nan_b = [n for n in range(np.size(bm_b)) if not math.isnan(bm_b[n])]
         
         if (non_nan_b.__len__() > 0):
-            start = non_nan_b[0]
+            start = non_nan_b[0] 
             end = non_nan_b[ non_nan_b.__len__() - 1 ] 
-            relevant_radars[rad.name + " (back)"] = (ephem_times[start],
-                bm_b[start],gt_b[start],ephem_times[end],bm_b[end],gt_b[end])
+            relevant_radars[rad.name] = (rad.code[0],"back", bm_b[start],gt_b[start],bm_b[end],gt_b[end])
 
         if (non_nan_f.__len__() > 0):
             start = non_nan_f[0]
             end = non_nan_f[ non_nan_f.__len__() - 1 ]
-            #print str(non_nan_f) + ": end index is: " + str(end)
-
-            relevant_radars[rad.name + " (front)"] = (ephem_times[start],
-                bm_f[start],gt_f[start],ephem_times[end],bm_f[end],gt_f[end])
-            #print relevant_radars[rad.name + " (front)"]
+            relevant_radars[rad.name] = (rad.code[0],"front",bm_f[start],gt_f[start],bm_f[end],gt_f[end])
 
 end_t = timeit.default_timer()
-print "Time required to compute detailed intersections by brute force: " + \
+print "\nTime required to compute detailed intersections by brute force: " + \
     str(end_t - start_t) + " seconds."
 
 # In general there will be a post-processing step in which only the conjunction
 # results will be included in the output
 
 # Output results to show things off:
+print "Start time: " + str(ephem_to_datetime(ephem_times[0]))
+print "End time: " + str(ephem_to_datetime(ephem_times[-1]))
+print "Radar | Fov (f or b), beam_f, gate_f, beam_b, gate_b"
 for r in relevant_radars:
     print r + ': ' + str(relevant_radars[r])
 
@@ -185,29 +190,31 @@ beams?
 
 """
 
-# Ephemeris MET timing data is in the awkward format of 'seconds since May 24 1968'
-# The current time can be converted to a similar number by doing as follows:
-# i) Use the date command in Bashs option to give # of seconds since Epoch (1970 Jan 1st)
-t1 = subprocess.check_output(["date", "+%s"])
-t1 = int(t1.split("\n",1)[0]) # extract the integer value
 
-# ii) Check the seconds between May 24 1968 and Jan 1 1970 (neg number)
-t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
-t2 = int(t2.split("\n",1)[0]) # extract the integer value
+# To convert Ephemeris time data (which is measured since May 24, 1968, we must
+# count the time difference between May 24 1968 and 'Epoch' date (Jan 1st 1970)
+# which we do by using the "date" command in Bash.
+#
+# Then, after calculating this offset, we can add the offset to the Ephemeris
+# times and convert to UTC using a function from the datetime module.
+#
+# At first the script accomplished this manually, but now I have put these
+# commands into their own function from script_utils, 'ephem_to_datetime'.
 
-# iii) Take the difference
-t = t1-t2
-
-
-# To convert Ephemeris data, we can do the opposite:
+from script_utils import *
+"""
 t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
 t_epoch_eph = int(t2.split("\n",1)[0])
 
-t_sec = t_epoch_eph + int(ephem_times[0])
+t_sec = t_epoch_eph + int(ephem_times[0]) # first ephemeris timing element
 start = datetime.utcfromtimestamp(t_sec)
 
-t_sec = t_epoch_eph + int(ephem_times[np.size(ephem_times)-1])
+t_sec = t_epoch_eph + int(ephem_times[-1]) # last ephemeris timing element
 end = datetime.utcfromtimestamp(t_sec)
+"""
+start = ephem_to_datetime(ephem_times[0])
+end = ephem_to_datetime(ephem_times[-1])
+
 
 stmonth = "0" + str(start.month) if str(start.month).__len__() == 1 else str(start.month)
 stday = "0" + str(start.day) if str(start.day).__len__() == 1 else str(start.day)
@@ -216,17 +223,17 @@ stday = "0" + str(start.day) if str(start.day).__len__() == 1 else str(start.day
 fname = str(start.year) + str(stmonth) + str(stday) + "." + "rkn.errlog.bz2"
 tstring = str(start.hour) + ":" +  str(start.minute) + ":00"
 
-from script_utils import *
 
-# Remotely access data on Maxwell
-import os
-os.system("fusermount -uq ./data/remote/")
-output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
+# The SuperDARN errlog files are compressed in .bz2 file formats. However, the
+# bz2 library provides functions for reading .bz2 files like normal text files.
 
 # TODO:automated selection of radar codes to replace 'rkn' below
 import  bz2
 fdir = "rkn" + "_errlog"
 f = bz2.BZ2File("./data/remote/rkn_errlog/" + fname)
+
+# With the file open, search for the desired time interval's beginning.
+# #TODO: (and possibly its ending)
 
 found = False
 while not found:
@@ -236,11 +243,18 @@ while not found:
         num = f.tell()
         print str(num) + ": " + ln
 
-# Part of errlog during ephemeris data   
+# Having determined the relevant line of text in the errlog file, grab all the
+# relevant errlog data spanning the ephemeris file
 f.seek(num) 
 rel_lines = f.readline()
+# TODO: explicitly determine the required duration. (search for end time)
+
 for i in range(500): # 500 should cover the 237 data samples and in general, a 4 minute pass
     rel_lines = rel_lines + f.readline()
 
-# times = ephem_to_datetime(ephem_times)
+uofs_rads = []
+for r in relevant_radars:
+    if r in ['Saskatoon','Prince George','Clyde River','Inuvik','Rankin Inlet']:
+        uofs_rads.append(r) 
+
 

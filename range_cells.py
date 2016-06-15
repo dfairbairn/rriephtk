@@ -20,6 +20,10 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
       If myFov is not specified, this code defaults to a Saskatoon FOV
         
   written by A. S. Reimer, 2013-09
+
+
+  Minutely modified by David Fairbairn, 2016-06
+
   """
 # Given an array of latitude and longitude, this function determines which
 # radar cell the point(s) falls within, returning [beam,gate] or [-1,-1] if
@@ -59,6 +63,7 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
   from davitpy import pydarn
   import numpy as np
   from datetime import datetime
+  import logging
 
   assert(np.shape(lats) == np.shape(lons)),"Input latitude/longitude must be vectors of the same length."
   #make sure lats and lons are numpy arrays and longitude is the same format as FOV lons (0-360) 
@@ -95,7 +100,7 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
       endInd=i*elementsPerChunk+numLatsLons  
       numEl=numLatsLons
     
-    print "Processing elements "+str(startInd+1)+" to "+str(endInd)
+    logging.info("Processing elements "+str(startInd+1)+" to "+str(endInd)) # Previously a print statement
     
     gates,beams=np.meshgrid(myFov.gates,myFov.beams)
     beams=np.reshape(beams,(1,numFovElements))*np.ones((numEl,1))
@@ -139,7 +144,9 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
     #made into matricies. This ensures that we compare every input lat and lon with every 
     #corner coordinate of the fov of the radar. See the where command documentation for 
     #more details. 
-    print "Setting up comparison matricies..."
+
+    logging.info("Setting up comparison matricies...") # Previously a print statement
+
     catX2=polarX2*np.ones((numEl,1))
     catY2=polarY2*np.ones((numEl,1))
     catX1=polarX1*np.ones((numEl,1))
@@ -157,7 +164,8 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
     #Then we test to make sure that the latitude and longitude points are bounded by these
     #line equations.
 
-    print "Finding overlaps..."
+    logging.info("Finding overlaps...") # Previously a print statement
+
     m1=(catY2-catY1)/(catX2-catX1)    #first we need to find the slopes of the lines
     m2=(catY3-catY2)/(catX3-catX2)    #by using the corners of the cell
     m3=(catY4-catY3)/(catX4-catX3)
@@ -219,7 +227,10 @@ def findRangeCell(lats,lons, myFov=None, elementsPerChunk=5000):
       rangeCells[0, startInd+ind[0]]=beams[ind[0],ind[1]]
       rangeCells[1, startInd+ind[0]]=gates[ind[0],ind[1]]
   fTime=datetime.now()-sTime
-  print "Finished in "+ str(fTime)
+
+  logging.info("Finished in "+ str(fTime)) # Previously a print statement
+
+
 # So we had to do a bit more thinking, and a bit more programming 
 # (the code is longer than only using for loops) but the result
 # is that the function is about a thousand times faster!

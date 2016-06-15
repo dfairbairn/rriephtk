@@ -8,13 +8,16 @@ Date: June 13th, 2016
 
 
 """
-import matplotlib
+import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 from datetime import datetime
 
 def ephems_to_datetime(ephem_times):
-
+    """
+    This function allows a whole array of ephemeris times to be conveniently
+    converted in the same manner as with the ephem_to_datetime() function
+    """
     assert isinstance(ephem_times, np.ndarray), "Not an array"
  
     # i) Check the seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
@@ -29,7 +32,13 @@ def ephems_to_datetime(ephem_times):
     return times
 
 def ephem_to_datetime(ephem):
-    
+    """
+    This function exists in order to conveniently convert the weird ephemeris
+    time data format from the EPOP RRI instrument into a datetime object.
+
+    *note*: makes use of the bash command 'date', so make sure you have it.
+
+    """    
     # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
     t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
     t_off = float(t_off.split("\n",1)[0]) # extract the integer value
@@ -39,10 +48,12 @@ def ephem_to_datetime(ephem):
 
 
 
-def plot_fov_sat(fov, ephem_lons, ephem_lats):
+def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     """
-
+    This function uses matplotlib to conveniently plot a SuperDARN radar FOV 
+    along with the EPOP's geographic coordinates.
     """
+    fov = get_fov_by_name(fovname)
     fovlons = ((fov.lonFull+360.)%360.).ravel()
     fovlats = (fov.latFull).ravel()
     fovcol = 3*np.ones(np.size(fovlons))
@@ -54,11 +65,21 @@ def plot_fov_sat(fov, ephem_lons, ephem_lats):
     colors = np.concatenate((fovcol,ephemcol))
     lons = np.concatenate((fovlons,ephemlons))
     lats = np.concatenate((fovlats,ephemlats))
+    
+    plt.title(fovname + " Radar vs Satellite Coordinates for " + date.__str__())
+    plt.xlabel('Longitude (degrees)')
+    plt.ylabel('Latitude (degrees)')
 
-    matplotlib.pyplot.scatter(lons,lats,c=colors,edgecolors='face')
-    matplotlib.pyplot.show()
+    plt.scatter((lons-360)%(-360),lats,c=colors,edgecolors='face')
+    plt.show()
+
 
 def plot_fovs_sat(fovs, ephem_longs, ephem_lats):
+    """
+    This function exists in order to facilitate plotting multiple FOVs together
+    with the ephemeris data.
+    #TODO: update like with the above function
+    """
 
     if (np.shape(fovs)[0] > 10):
         print "Can't do more than 10 FOVs"
@@ -85,11 +106,15 @@ def plot_fovs_sat(fovs, ephem_longs, ephem_lats):
     lats = np.concatenate((lats,ephemlats))
     colors = np.concatenate((colors,ephemcol))
     
-    matplotlib.pyplot.scatter(lons,lats,c=colors,edgecolors='face')
-    matplotlib.pyplot.show()
+    plt.scatter(lons,lats,c=colors,edgecolors='face')
+    plt.show()
 
 
 def get_fov_by_name(name):
+    """
+    This function shortcuts the FOV creation process by handling assumptions I
+    typically make when creating FOV objects.
+    """
     from davitpy import pydarn
     nw = pydarn.radar.network()
     rad_id = (nw.getRadarByName(name)).id
