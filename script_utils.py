@@ -8,15 +8,41 @@ Date: June 13th, 2016
 
 
 """
+import matplotlib
+import subprocess
+import numpy as np
+from datetime import datetime
+
+def ephems_to_datetime(ephem_times):
+
+    assert isinstance(ephem_times, np.ndarray), "Not an array"
+ 
+    # i) Check the seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+    t_off = float(t_off.split("\n",1)[0]) # extract the integer value
+
+    # ii) Do the math.
+    ephtimes = ephem_times + t_off
+    times = []
+    for i in range(np.size(ephtimes)):
+        times.append(datetime.utcfromtimestamp(ephtimes[i]))
+    return times
+
+def ephem_to_datetime(ephem):
+    
+    # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+    t_off = float(t_off.split("\n",1)[0]) # extract the integer value
+  
+    # ii) Do the math. 
+    return datetime.utcfromtimestamp(t_off + float(ephem))    
+
+
 
 def plot_fov_sat(fov, ephem_lons, ephem_lats):
     """
-    
-
-
 
     """
-    import matplotlib
     fovlons = ((fov.lonFull+360.)%360.).ravel()
     fovlats = (fov.latFull).ravel()
     fovcol = 3*np.ones(np.size(fovlons))
@@ -34,9 +60,6 @@ def plot_fov_sat(fov, ephem_lons, ephem_lats):
 
 def plot_fovs_sat(fovs, ephem_longs, ephem_lats):
 
-
-
-    import matplotlib
     if (np.shape(fovs)[0] > 10):
         print "Can't do more than 10 FOVs"
         return

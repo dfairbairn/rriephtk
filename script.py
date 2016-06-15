@@ -203,17 +203,44 @@ t = t1-t2
 t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
 t_epoch_eph = int(t2.split("\n",1)[0])
 
-t_sec = t_epoch_eph + int(ephem_times[0]
-sample_start = datetime.utcfromtimestamp(t_sec)
+t_sec = t_epoch_eph + int(ephem_times[0])
+start = datetime.utcfromtimestamp(t_sec)
 
+t_sec = t_epoch_eph + int(ephem_times[np.size(ephem_times)-1])
+end = datetime.utcfromtimestamp(t_sec)
 
-rad_codes
-fname = str(sample_start[0]) + str(sample_start[1]) + str(sample_start[2]) + "." + \
-    "rkn" + ".errlog.bz2"
-tstring = str(sample_start[3]) + ":" +  str(sample_start[4]) + ":00"
+stmonth = "0" + str(start.month) if str(start.month).__len__() == 1 else str(start.month)
+stday = "0" + str(start.day) if str(start.day).__len__() == 1 else str(start.day)
+
+# TODO: automated selection of radar codes to replace 'rkn' below
+fname = str(start.year) + str(stmonth) + str(stday) + "." + "rkn.errlog.bz2"
+tstring = str(start.hour) + ":" +  str(start.minute) + ":00"
 
 from script_utils import *
 
+# Remotely access data on Maxwell
+import os
+os.system("fusermount -uq ./data/remote/")
+output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
 
+# TODO:automated selection of radar codes to replace 'rkn' below
+import  bz2
+fdir = "rkn" + "_errlog"
+f = bz2.BZ2File("./data/remote/rkn_errlog/" + fname)
 
+found = False
+while not found:
+    ln = f.readline()
+    if ln.find(tstring) != -1:
+        found = True
+        num = f.tell()
+        print str(num) + ": " + ln
+
+# Part of errlog during ephemeris data   
+f.seek(num) 
+rel_lines = f.readline()
+for i in range(500): # 500 should cover the 237 data samples and in general, a 4 minute pass
+    rel_lines = rel_lines + f.readline()
+
+# times = ephem_to_datetime(ephem_times)
 
