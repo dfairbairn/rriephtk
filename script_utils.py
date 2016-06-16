@@ -58,19 +58,39 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     fovlats = (fov.latFull).ravel()
     fovcol = 3*np.ones(np.size(fovlons))
 
+    # A workaround to list the blue FOV lines in the legend without listing 
+    # them 17 separate times: give just one of them a label for the legend.
+    lon = (fov.lonFull[0]+360.)%360.
+    lat = (fov.latFull[0])
+    plt.plot(lon,lat,'b',label="FOV")
+    for i in range(np.shape(fov.lonFull)[0] - 1):
+        lon = (fov.lonFull[i+1]+360.)%360.
+        lat = (fov.latFull[i+1])
+        f = plt.plot(lon,lat,'b')
+
     ephemcol = 5*np.ones(np.size(ephem_lats))
     ephemlons = (ephem_lons+360.)%360.
     ephemlats = ephem_lats
 
-    colors = np.concatenate((fovcol,ephemcol))
-    lons = np.concatenate((fovlons,ephemlons))
-    lats = np.concatenate((fovlats,ephemlats))
-    
     plt.title(fovname + " Radar FOV vs RRI Ephemeris for " + date.__str__())
     plt.xlabel('Geographic Longitude (degrees)')
     plt.ylabel('Geographic Latitude (degrees)')
 
-    plt.plot((lons-360)%(-360),lats,c=colors)#,edgecolors='face',s=np.ones(np.size(lons)),marker='.')
+    """    
+    fov = get_fov_by_name(fovname)
+    fovlons = ((fov.lonFull+360.)%360.).ravel()
+    fovlats = (fov.latFull).ravel()
+    fovcol = 3*np.ones(np.size(fovlons))
+
+    colors = np.concatenate((fovcol,ephemcol))
+    lons = np.concatenate((fovlons,ephemlons))
+    lats = np.concatenate((fovlats,ephemlats))
+
+    plt.plot((lons-360)%(-360),lats,c=colors,edgecolors='face',s=np.ones(np.size(lons)),marker='.')
+    plt.show()
+    """
+    plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
+    plt.legend()
     plt.show()
 
 

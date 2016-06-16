@@ -252,10 +252,9 @@ rel_lines = f.readline()
 
 for i in range(500): # 500 should cover the 237 data samples and in general, a 4 minute pass
     rel_lines = rel_lines + f.readline()
-
+"""
 uofs_rads = []
 for r in relevant_radars:
     if r in ['Saskatoon','Prince George','Clyde River','Inuvik','Rankin Inlet']:
         uofs_rads.append(r) 
-"""
-
+        plot_fov_sat(r,start,geog_longs,geog_lats)
