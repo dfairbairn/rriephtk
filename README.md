@@ -19,4 +19,5 @@ command line with the desired RRI data file as an additional argument:
 If pwd is script directory (or optionally use the -i option to tell Python
 to enter interactive mode after running the script):
 > python script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
+
 > python -i script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
