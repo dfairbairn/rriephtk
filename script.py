@@ -41,11 +41,12 @@ else:
 # directory (using os.system so that if nothing is there it doesnt crash the 
 # script).
 
+"""
 import os
 os.system("fusermount -uq ./data/remote/")
 print "Accessing data files on maxwell, enter your password: "
 output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
-
+"""
 
 # Some extra code tidbits that can be deleted when I want
 
@@ -91,9 +92,9 @@ Next, rough math is performed to check if each latitude point corresponds with
 any of the radar stations.
 
 #operations: #radar sites x #lat/lon points in RRI data
-
-
 """
+
+
 
 # Approach 1: brute force by running Angeline's code on each operational radar 
 # for the given latitude-longitude pair
@@ -226,7 +227,7 @@ tstring = str(start.hour) + ":" +  str(start.minute) + ":00"
 
 # The SuperDARN errlog files are compressed in .bz2 file formats. However, the
 # bz2 library provides functions for reading .bz2 files like normal text files.
-
+"""
 # TODO:automated selection of radar codes to replace 'rkn' below
 import  bz2
 fdir = "rkn" + "_errlog"
@@ -256,5 +257,5 @@ uofs_rads = []
 for r in relevant_radars:
     if r in ['Saskatoon','Prince George','Clyde River','Inuvik','Rankin Inlet']:
         uofs_rads.append(r) 
-
+"""
 

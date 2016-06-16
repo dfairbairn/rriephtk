@@ -1,6 +1,7 @@
 # RRI-Conjunction-Script
 A tool which locates relevant SuperDARN signals which might have reached the RRI instrument.
 
+This is a work-in-progress.
 
 **Note**
 This tool has *not* been made to be specifically portable yet. Installation 
@@ -15,9 +16,7 @@ If you happen to have a computer with all the correct software and you have
 access to the data server, the script can be used by calling it at the 
 command line with the desired RRI data file as an additional argument:
 
-e.g.
-> If pwd is script directory
-python script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
-
-> Or, call it so that it enters interactive mode after:
-python -i script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
+If pwd is script directory (or optionally use the -i option to tell Python
+to enter interactive mode after running the script):
+> python script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
+> python -i script.py ./data/RRI_20160401_072744_033718_lv1_v2.h5

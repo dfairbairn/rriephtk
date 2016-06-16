@@ -66,30 +66,32 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     lons = np.concatenate((fovlons,ephemlons))
     lats = np.concatenate((fovlats,ephemlats))
     
-    plt.title(fovname + " Radar vs Satellite Coordinates for " + date.__str__())
-    plt.xlabel('Longitude (degrees)')
-    plt.ylabel('Latitude (degrees)')
+    plt.title(fovname + " Radar FOV vs RRI Ephemeris for " + date.__str__())
+    plt.xlabel('Geographic Longitude (degrees)')
+    plt.ylabel('Geographic Latitude (degrees)')
 
-    plt.scatter((lons-360)%(-360),lats,c=colors,edgecolors='face')
+    plt.plot((lons-360)%(-360),lats,c=colors)#,edgecolors='face',s=np.ones(np.size(lons)),marker='.')
     plt.show()
 
 
-def plot_fovs_sat(fovs, ephem_longs, ephem_lats):
+def plot_fovs_sat(fovnames, date, ephem_longs, ephem_lats):
     """
     This function exists in order to facilitate plotting multiple FOVs together
     with the ephemeris data.
     #TODO: update like with the above function
     """
 
-    if (np.shape(fovs)[0] > 10):
+    if (np.shape(fovnamess)[0] > 10):
         print "Can't do more than 10 FOVs"
         return
+
 
     lons = []
     lats = []
     colors = []
     color_offset = 0
-    for fov in fovs:
+    for fovname in fovnames:
+        fov = get_fov_by_name(fovname)
         fovlons = ((fov.lonFull+360.)%360.).ravel()
         fovlats = (fov.latFull).ravel()
         fovcol = (1+color_offset)*np.ones(np.size(fovlons))
@@ -105,8 +107,12 @@ def plot_fovs_sat(fovs, ephem_longs, ephem_lats):
     lons = np.concatenate((lons,ephemlons)) 
     lats = np.concatenate((lats,ephemlats))
     colors = np.concatenate((colors,ephemcol))
-    
-    plt.scatter(lons,lats,c=colors,edgecolors='face')
+ 
+    plt.title("Radar FOVs vs RRI Ephemeris for " + date.__str__())
+    plt.xlabel('Geographic Longitude (degrees)')
+    plt.ylabel('Geographic Latitude (degrees)')
+   
+    plt.plot(lons,lats,c=colors)#,edgecolors='face')
     plt.show()
 
 
