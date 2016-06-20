@@ -285,6 +285,24 @@ while f.tell() <= end_line:
 
 
 
-# TODO: Create an output file? List relevant radars, relevant USASK radars,
-# maybe save some plots as output images automatically, and include the name
-# of the errlog file and the relevant section from it?
+# -------------------------------- PART 4 --------------------------------------
+#                           CREATE OUTPUT FILE            
+# ------------------------------------------------------------------------------
+# Having determined radars, beams, gates, grab the relevant data files (errlog &
+# perhaps more?) to include here.
+
+
+# TODO: Plot all relevant radars, look at all relevant errlogs
+
+outp = open("./data/output/"+(str(start.year)+st_month+st_day+"_"+st_hour+st_min+".dat"),"w+")
+
+outp.write("OUTPUT FILE FOR RRI CONJUNCTION SCRIPT\n======================================\n")
+outp.write("Start Time: "+start.__str__()+"\nEnd Time: "+end.__str__())
+outp.write("\nRRI File: "+dat_fname+"\n")
+
+for r in relevant_radars:
+    outp.write("\n"+str(r) + ": " + str(relevant_radars[r]))
+
+outp.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
+outp.write(rel_lines)
+

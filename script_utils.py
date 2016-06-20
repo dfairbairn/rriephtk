@@ -51,7 +51,7 @@ def ephem_to_datetime(ephem):
 def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     """
     This function uses matplotlib to conveniently plot a SuperDARN radar FOV 
-    along with the EPOP's geographic coordinates.
+    along with the EPOP's geographic coordinates, and saves the figure to CWD.
     """
     fov = get_fov_by_name(fovname)
     fovlons = ((fov.lonFull+360.)%360.).ravel()
@@ -89,8 +89,14 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     plt.plot((lons-360)%(-360),lats,c=colors,edgecolors='face',s=np.ones(np.size(lons)),marker='.')
     plt.show()
     """
+    # So that the formats match, I will ensure months and days are padded for
+    # the output figure's name as well.
+    month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
+    day = "0" + str(date.day) if str(date.day).__len__() == 1 else str(date.day)
+
     plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
     plt.legend()
+    plt.savefig(str(date.year)+"_"+month+day+"_"+fovname) 
     plt.show()
 
 
