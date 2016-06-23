@@ -10,8 +10,9 @@ Date: May 2016
 
 import os
 import subprocess
+import sys
 
-import logging
+import logging #TODO: use this.
 
 import davitpy
 from davitpy import pydarn
@@ -22,25 +23,42 @@ import timeit
 import math
 
 
+# -------------------------------- PART 1 --------------------------------------
+#                              INITIALIZATION 
+# ------------------------------------------------------------------------------
+# First, the script determines which RRI data it's looking at.
+
 # The user can provide an argument specifying the RRI data file, or by default
-# the script will use the RRI file for April 1st of 2016.
+# the script will use the RRI file for April 2nd of 2015.
 #
-# If an argument is provided alongside the script specifying an RRI file, 
+
+# Test if directory structure with ./data, ./data/output, ./data/remote exist
+if not os.path.isdir('./data'):
+    os.system('mkdir ./data')
+    print "Creating script directory 'data/'."
+if not os.path.isdir('./data/output'):
+    os.system('mkdir ./data/output')
+    print "Creating script directory 'data/output/'."
+if not os.path.isdir('./data/remote'):
+    os.system('mkdir ./data/remote')
+    print "Creating script directory 'data/remote/'."
 
 import sys
 if sys.argv.__len__() == 2 and isinstance(sys.argv[1], str):
     dat_fname = sys.argv[1]
 else:
     print "No RRI file specified - going with default..."
-    dat_fname = "/home/david/pyth_stuff/script/data/RRI_20150402_032244_033241_lv1_v2.h5" # An RRI data file
-
+    dat_fname = "./data/RRI_20150402_032244_033241_lv1_v2.h5" # An RRI data file
+    
+if not os.path.exists(dat_fname):
+    print "No RRI file by that name. Exitting."
+    exit()
 
 # The sshfs tool is used to mount Maxwell's data directory locally.
 # 
 # First, the script unmounts anything currently already mounted in the mounting
 # directory (using os.system so that if nothing is there it doesnt crash the 
 # script).
-import os
 os.system("fusermount -uq ./data/remote/")
 print "Accessing data files on maxwell, enter your password: "
 output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
@@ -58,13 +76,10 @@ rlons,rlats=(np.array(myFov.lonFull)+360.)%360.0,np.array(myFov.latFull)
 
 
 
-# -------------------------------- PART 1 --------------------------------------
+# -------------------------------- PART 2 --------------------------------------
 #                       PARSING HDF5 EPHEMERIS DATA
 # ------------------------------------------------------------------------------
 # First, the script takes the HDF5 file of interest and grabs its Ephemeris data.
-
-
-
 
 # Running commands to grab Ephemeris Data from RRI HDF5 file.
 
@@ -82,7 +97,7 @@ print "First Geographic Longitude: " + str(geog_longs[0])
 print "First Geographic Latitude: " + str(geog_lats[0])
 
 
-# -------------------------------- PART 2 --------------------------------------
+# -------------------------------- PART 3 --------------------------------------
 #                        DETERMINING RELEVANT RADARS 
 # ------------------------------------------------------------------------------
 # Next, rough math is performed to check if each latitude point corresponds with
@@ -173,8 +188,8 @@ for r in relevant_radars:
 
 
 
-# -------------------------------- PART 3 --------------------------------------
-#                      GRABBING RELEVANT SUPERDARN DATA             
+# -------------------------------- PART 4 --------------------------------------
+#                 GRAB SUPERDARN DATA, CREATE OUTPUT FILES             
 # ------------------------------------------------------------------------------
 # Having determined radars, beams, gates, grab the relevant data files (errlog &
 # perhaps more?) to include here.
@@ -205,16 +220,13 @@ end = datetime.utcfromtimestamp(t_sec)
 start = ephem_to_datetime(ephem_times[0])
 end = ephem_to_datetime(ephem_times[-1])
 
-# Check 
+# Check if they're radars for which we actually have SuperDARN data currently 
 uofs_rads = []
 for r in relevant_radars:
     if r in ['Saskatoon','Prince George','Clyde River','Inuvik','Rankin Inlet']:
         uofs_rads.append(r) 
     
-# For now, maybe just check one errlog file?
-if 'Saskatoon' in uofs_rads:
-    plot_fov_sat("Saskatoon",start,geog_longs,geog_lats)
-    rcode = 'sas' #TODO: check *each* usask radar (stick codes in a list)
+
 
 # ERRLOG files contain entries describing the beam number and frequency of 
 # the transmission, occurring roughly every three seconds, starting on each 
@@ -244,65 +256,54 @@ end_min = end.minute+3
 st_min = "0" + str(st_min) if str(st_min).__len__() == 1 else str(st_min)
 end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
 
-fname = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
-
-start_string = str(st_hour) + ":" +  str(st_min) + ":00"
-end_string = str(end_hour) + ":" + str(end_min) + ":00"
+start_string = str(st_hour) + ":" +  str(st_min) #+ ":00" # Omit seconds for now in case
+end_string = str(end_hour) + ":" + str(end_min) #+ ":00" # they don't follow expected pattern
 
 # The SuperDARN errlog files are compressed in .bz2 file formats. However, the
 # bz2 library provides functions for reading .bz2 files like normal text files.
 import  bz2
-fdir = rcode + "_errlog"
-f = bz2.BZ2File("./data/remote/" + rcode + "_errlog/" + fname)
 
-# With the file open, search for the desired time interval's beginning.
+for u in uofs_rads:
+    rcode = (nw.getRadarByName(u)).code[0]
+    plot_fov_sat(u,start,geog_longs,geog_lats,suppress_show=True) 
 
-# Search for the position of the first line of interest
-found = False
-while not found:
-    ln = f.readline()
-    if ln.find(start_string) != -1:
-        found = True
-        start_line = f.tell()
-        print str(start_line) + ": " + ln
+    fname = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
 
-# Now search for the position of the final line of interest
-found = False
-while not found:
-    ln = f.readline()
-    if ln.find(end_string) != -1:
-        found = True
-        end_line = f.tell()
-        print str(end_line) + ": " + ln
+    fdir = rcode + "_errlog"    
+    f = bz2.BZ2File("./data/remote/" + rcode + "_errlog/" + fname)
+    # With the file open, search for the desired time interval's beginning.
+    # Search for the position of the first line of interest
+    found = False
+    while not found:
+        ln = f.readline()
+        if ln.find(start_string) != -1:
+            found = True
+            start_line = f.tell()
+            print str(start_line) + ": " + ln
+    # Now search for the position of the final line of interest
+    found = False
+    while not found:
+        ln = f.readline()
+        if ln.find(end_string) != -1:
+            found = True
+            end_line = f.tell()
+            print str(end_line) + ": " + ln
+    # Having determined the relevant line of text in the errlog file, grab all the
+    # relevant errlog data spanning the ephemeris file
+    f.seek(start_line) 
+    rel_lines = f.readline()
+    while f.tell() <= end_line:
+        rel_lines = rel_lines + f.readline()
 
-# Having determined the relevant line of text in the errlog file, grab all the
-# relevant errlog data spanning the ephemeris file
-f.seek(start_line) 
-rel_lines = f.readline()
+    outp = open("./data/output/"+(str(start.year)+st_month+st_day+"_"+st_hour+st_min+"_"+rcode+".dat"),"w+")
+    outp.write("OUTPUT FILE FOR RRI CONJUNCTION SCRIPT\n======================================\n")
+    outp.write("Start Time: "+start.__str__()+"\nEnd Time: "+end.__str__())
+    outp.write("\nRRI File: "+dat_fname+"\n")
+    
+    for r in relevant_radars:
+        outp.write("\n"+str(r) + ": " + str(relevant_radars[r]))
+    outp.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
+    outp.write(rel_lines)
 
-while f.tell() <= end_line:
-    rel_lines = rel_lines + f.readline()
-
-
-
-# -------------------------------- PART 4 --------------------------------------
-#                           CREATE OUTPUT FILE            
-# ------------------------------------------------------------------------------
-# Having determined radars, beams, gates, grab the relevant data files (errlog &
-# perhaps more?) to include here.
-
-
-# TODO: Plot all relevant radars, look at all relevant errlogs
-
-outp = open("./data/output/"+(str(start.year)+st_month+st_day+"_"+st_hour+st_min+".dat"),"w+")
-
-outp.write("OUTPUT FILE FOR RRI CONJUNCTION SCRIPT\n======================================\n")
-outp.write("Start Time: "+start.__str__()+"\nEnd Time: "+end.__str__())
-outp.write("\nRRI File: "+dat_fname+"\n")
-
-for r in relevant_radars:
-    outp.write("\n"+str(r) + ": " + str(relevant_radars[r]))
-
-outp.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
-outp.write(rel_lines)
+os.system("fusermount -uq ./data/remote/")
 

@@ -4,7 +4,7 @@ Description: Contains utilities used in the RRI Conjunction Finder script.
     These include functions to more conveniently grab FOV data from Davitpy,
     plotting functions that make use of Matplotlib, etc.
 Author: David Fairbairn
-Date: June 13th, 2016
+Date: June 2016
 
 
 """
@@ -47,16 +47,24 @@ def ephem_to_datetime(ephem):
     return datetime.utcfromtimestamp(t_off + float(ephem))    
 
 
-
-def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
+#TODO: plot the back lobe?
+def plot_fov_sat(fovname, date, ephem_lons, ephem_lats,suppress_show=False):
     """
     This function uses matplotlib to conveniently plot a SuperDARN radar FOV 
     along with the EPOP's geographic coordinates, and saves the figure to CWD.
+
+    **PARAMS**
+    fovname: (String) the name of the radar (as in DaVitPy, e.g. "Saskatoon")
+    date: (Datetime object) the desired date of the plot. Used for the title.
+    ephem_lons: (Numpy Array) Array of longitude points for a ground track.
+    ephem_lats: (Numpy Array) Array of latitude points for a ground track.
+    [suppress_show]: (Boolean) Tells function to just save the image as a file.
+
     """
     fov = get_fov_by_name(fovname)
     fovlons = ((fov.lonFull+360.)%360.).ravel()
     fovlats = (fov.latFull).ravel()
-    fovcol = 3*np.ones(np.size(fovlons))
+    fovcol = 3*np.ones(np.size(fovlons)) # 3 for blue FOVs
 
     # A workaround to list the blue FOV lines in the legend without listing 
     # them 17 separate times: give just one of them a label for the legend.
@@ -68,7 +76,7 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
         lat = (fov.latFull[i+1])
         f = plt.plot(lon,lat,'b')
 
-    ephemcol = 5*np.ones(np.size(ephem_lats))
+    ephemcol = 5*np.ones(np.size(ephem_lats)) # 5 for a red track
     ephemlons = (ephem_lons+360.)%360.
     ephemlats = ephem_lats
 
@@ -76,19 +84,6 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
     plt.xlabel('Geographic Longitude (degrees)')
     plt.ylabel('Geographic Latitude (degrees)')
 
-    """    
-    fov = get_fov_by_name(fovname)
-    fovlons = ((fov.lonFull+360.)%360.).ravel()
-    fovlats = (fov.latFull).ravel()
-    fovcol = 3*np.ones(np.size(fovlons))
-
-    colors = np.concatenate((fovcol,ephemcol))
-    lons = np.concatenate((fovlons,ephemlons))
-    lats = np.concatenate((fovlats,ephemlats))
-
-    plt.plot((lons-360)%(-360),lats,c=colors,edgecolors='face',s=np.ones(np.size(lons)),marker='.')
-    plt.show()
-    """
     # So that the formats match, I will ensure months and days are padded for
     # the output figure's name as well.
     month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
@@ -96,8 +91,10 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats):
 
     plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
     plt.legend()
-    plt.savefig(str(date.year)+"_"+month+day+"_"+fovname) 
-    plt.show()
+    plt.savefig("./data/output/"+str(date.year)+"_"+month+day+"_"+fovname) 
+    if suppress_show==False:
+        plt.show()
+    
 
 
 def plot_fovs_sat(fovnames, date, ephem_longs, ephem_lats):
