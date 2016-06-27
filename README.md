@@ -7,8 +7,10 @@ This is a work-in-progress.
 **Note**
 
 This tool has *not* been made to be specifically portable yet. Installation 
-is non-existent: you'll need to download and install DaVitPy, Numpy,
-Matplotlib, and more. In addition, some of the data is retrieved from a server
+is non-existent: you'll need to download and install DaVitPy primarily, which
+in turn requires Numpy and Matplotlib which are used liberally in this script.
+
+In addition, some of the data is retrieved from a server
 from which authentication is done by the user, so unless you have access to it
 already, that won't work either. Finally, it uses bash commands at a couple
 different points, which is further restrictive. I apologize for all of this.

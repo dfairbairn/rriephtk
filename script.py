@@ -137,8 +137,6 @@ nw = pydarn.radar.network()
 results = dict()
 lat_subset = geog_lats#[0:10]
 lon_subset = geog_longs#[0:10]
-#lat_subset = [0]
-#lon_subset = [0]
 relevant_radars = dict()
 
 start_t = timeit.default_timer()
@@ -265,12 +263,22 @@ import  bz2
 
 for u in uofs_rads:
     rcode = (nw.getRadarByName(u)).code[0]
-    plot_fov_sat(u,start,geog_longs,geog_lats,suppress_show=True) 
+    plot_fov_sat(u,start,geog_longs,geog_lats)#,suppress_show=True) 
 
-    fname = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
+    fname_bz2 = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
+    fname_reg = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog"
+    fpath = "./data/remote/" + rcode + "_errlog/"
 
-    fdir = rcode + "_errlog"    
-    f = bz2.BZ2File("./data/remote/" + rcode + "_errlog/" + fname)
+    if os.path.exists(fpath + fname_bz2):
+        f = bz2.BZ2File(fpath + fname_bz2)
+        logging.debug("Uses bz2 errlog file.")
+    elif os.path.exists(fpath + fname_reg):
+        logging.debug("Uses non-bz2 errlog file.")
+        f = open(fpath + fname_reg)
+    else:
+        logging.error("No ERRLOG file found!")
+        exit()
+
     # With the file open, search for the desired time interval's beginning.
     # Search for the position of the first line of interest
     found = False

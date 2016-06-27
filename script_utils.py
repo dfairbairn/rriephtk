@@ -151,4 +151,9 @@ def get_fov_by_name(name):
     fov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',coords='geo',ngates=75)
     return fov
 
+def two_pad(in_time):
+    """ 
+    Takes in a number of 1 or 2 digits, returns a string of two digits. 
+    """
+    return "0" + str(in_time) if str(in_time).__len__() == 1 else str(in_time)
 
