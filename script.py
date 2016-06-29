@@ -256,8 +256,8 @@ end_min = end.minute+3
 st_min = "0" + str(st_min) if str(st_min).__len__() == 1 else str(st_min)
 end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
 
-start_string = str(st_hour) + ":" +  str(st_min) #+ ":00" # Omit seconds for now in case
-end_string = str(end_hour) + ":" + str(end_min) #+ ":00" # they don't follow expected pattern
+start_string = str(st_hour) + ":" +  str(st_min) + ":" # "00" # Omit seconds for now in case
+end_string = str(end_hour) + ":" + str(end_min) + ":" #"00" # they don't follow expected pattern
 
 # The SuperDARN errlog files are compressed in .bz2 file formats. However, the
 # bz2 library provides functions for reading .bz2 files like normal text files.

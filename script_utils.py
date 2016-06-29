@@ -40,7 +40,8 @@ def ephem_to_datetime(ephem):
 
     """    
     # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
-    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+    # -u parameter required to ensure offset is in UTC. +%s specifies output in seconds.
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s", "-u"])
     t_off = float(t_off.split("\n",1)[0]) # extract the integer value
   
     # ii) Do the math. 
@@ -88,10 +89,11 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats,suppress_show=False):
     # the output figure's name as well.
     month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
     day = "0" + str(date.day) if str(date.day).__len__() == 1 else str(date.day)
+    hr = "0" + str(date.hour) if str(date.hour).__len__() == 1 else str(date.hour)
 
     plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
     plt.legend()
-    plt.savefig("./data/output/"+str(date.year)+"_"+month+day+"_"+fovname) 
+    plt.savefig("./data/output/"+str(date.year)+month+day+"_"+hr+"00_"+fovname) 
     if suppress_show==False:
         plt.show()
     
@@ -101,11 +103,10 @@ def plot_fovs_sat(fovnames, date, ephem_longs, ephem_lats):
     """
     This function exists in order to facilitate plotting multiple FOVs together
     with the ephemeris data.
-    #TODO: update like with the above function
     """
-
+    # TODO: update like with the above function
     if (np.shape(fovnamess)[0] > 10):
-        print "Can't do more than 10 FOVs"
+        print "Can't do more than 10 FOVs! That's just unreasonable."
         return
 
 
