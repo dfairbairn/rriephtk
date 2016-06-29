@@ -60,8 +60,10 @@ if not os.path.exists(dat_fname):
 # directory (using os.system so that if nothing is there it doesnt crash the 
 # script).
 os.system("fusermount -uq ./data/remote/")
+print "Accessing data files on maxwell, enter your username: "
+username = raw_input()
 print "Accessing data files on maxwell, enter your password: "
-output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
+output = subprocess.check_output(["sshfs", username + "@maxwell.usask.ca:/data/","./data/remote"])
 
 
 # Some extra code tidbits that can be deleted when I want
@@ -263,7 +265,7 @@ import  bz2
 
 for u in uofs_rads:
     rcode = (nw.getRadarByName(u)).code[0]
-    plot_fov_sat(u,start,geog_longs,geog_lats)#,suppress_show=True) 
+    plot_fov_sat(u,start,geog_longs,geog_lats,suppress_show=True) 
 
     fname_bz2 = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
     fname_reg = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog"
