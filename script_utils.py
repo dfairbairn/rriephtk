@@ -90,10 +90,11 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats,suppress_show=False):
     month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
     day = "0" + str(date.day) if str(date.day).__len__() == 1 else str(date.day)
     hr = "0" + str(date.hour) if str(date.hour).__len__() == 1 else str(date.hour)
+    mn = "0" + str(date.minute) if str(date.minute).__len__() == 1 else str(date.minute)
 
     plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
     plt.legend()
-    plt.savefig("./data/output/"+str(date.year)+month+day+"_"+hr+"00_"+fovname) 
+    plt.savefig("./data/output/"+str(date.year)+month+day+"_"+hr+"h"+mn+"_"+fovname) 
     if suppress_show==False:
         plt.show()
     

@@ -61,7 +61,7 @@ if not os.path.exists(dat_fname):
 # script).
 os.system("fusermount -uq ./data/remote/")
 print "Accessing data files on maxwell, enter your username: "
-username = raw_input()
+username = raw_input("Username: ")
 print "Accessing data files on maxwell, enter your password: "
 output = subprocess.check_output(["sshfs", username + "@maxwell.usask.ca:/data/","./data/remote"])
 
@@ -105,35 +105,8 @@ print "First Geographic Latitude: " + str(geog_lats[0])
 # Next, rough math is performed to check if each latitude point corresponds with
 # any of the radar stations.
 
-
-# Approach 1: brute force by running Angeline's code on each operational radar 
-# for the given latitude-longitude pair
-import rgCoords
-
-""" 
-# Using script to go through 11 lat/lon pairs with Angeline Code
-# Now, spin through each operational radar and test if it reaches (0,0)
-start = timeit.default_timer() # For showing timing
-nw = pydarn.radar.network()
-results = dict()
-lat_subset = geog_lats[0:10]
-lon_subset = geog_longs[0:10]
-for rad in nw.radars:
-    if rad.status == 1:
-        bm,gt,view=rgCoords.pos_to_rg(lat_subset,lon_subset,alt=300.0,
-coords="geo",dtime=datetime(2016,04,01),frang=180.0,rsep=45.0,rad_id=rad.id) 
-        results[rad.name]=(bm,gt,view)
-
-for item in results.items():
-    print item
-
-# Takes 49 seconds doing the full brute-force calculations with input of (0,0)
-# show results. For (0,0) input, no radar should reach it (maybe azores could).
-# Doing 11 samples from Ephemeris data, takes 65.7 seconds.
-"""
-
-# Approach 2: brute force by running Ashton's code twice per radar (for both 
-# the front and back views)
+# Current approach: brute force by running Ashton's code twice per radar (for 
+# both the front and back views). Used to use Angeline Burrell's code.
 import range_cells
 nw = pydarn.radar.network()
 results = dict()
@@ -207,16 +180,7 @@ for r in relevant_radars:
 # commands into their own function from script_utils, 'ephem_to_datetime'.
 
 from script_utils import *
-"""
-t2 = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
-t_epoch_eph = int(t2.split("\n",1)[0])
 
-t_sec = t_epoch_eph + int(ephem_times[0]) # first ephemeris timing element
-start = datetime.utcfromtimestamp(t_sec)
-
-t_sec = t_epoch_eph + int(ephem_times[-1]) # last ephemeris timing element
-end = datetime.utcfromtimestamp(t_sec)
-"""
 start = ephem_to_datetime(ephem_times[0])
 end = ephem_to_datetime(ephem_times[-1])
 
@@ -225,8 +189,6 @@ uofs_rads = []
 for r in relevant_radars:
     if r in ['Saskatoon','Prince George','Clyde River','Inuvik','Rankin Inlet']:
         uofs_rads.append(r) 
-    
-
 
 # ERRLOG files contain entries describing the beam number and frequency of 
 # the transmission, occurring roughly every three seconds, starting on each 
@@ -256,8 +218,13 @@ end_min = end.minute+3
 st_min = "0" + str(st_min) if str(st_min).__len__() == 1 else str(st_min)
 end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
 
+
 start_string = str(st_hour) + ":" +  str(st_min) + ":" # "00" # Omit seconds for now in case
 end_string = str(end_hour) + ":" + str(end_min) + ":" #"00" # they don't follow expected pattern
+end_string2 = str(end_hour) + ":" + str(end_min
+# NOTE: THIS DOESNT WORK FOR RKN_ERRLOG FOR 20150402 BECAUSE END_STRING DOESNT APPEAR
+# TODO: MAKE THE ENDPOINT FOR THE ERRLOG READ JUST BE WHEN THE EPOPSOUND PROGRAM CEASES??
+#       OR PERHAPS JUST LOOK FOR A TIME 'GREATER' THAN END_TSTRING?
 
 # The SuperDARN errlog files are compressed in .bz2 file formats. However, the
 # bz2 library provides functions for reading .bz2 files like normal text files.
@@ -298,6 +265,11 @@ for u in uofs_rads:
             found = True
             end_line = f.tell()
             print str(end_line) + ": " + ln
+        elif f.tell > (start_line + 1000000): #1000000 bytes
+            end_line = start_line + 1000000
+            found = True
+            print str(end_line) + ": " + ln
+
     # Having determined the relevant line of text in the errlog file, grab all the
     # relevant errlog data spanning the ephemeris file
     f.seek(start_line) 
