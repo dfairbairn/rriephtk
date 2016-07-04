@@ -221,7 +221,6 @@ end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
 
 start_string = str(st_hour) + ":" +  str(st_min) + ":" # "00" # Omit seconds for now in case
 end_string = str(end_hour) + ":" + str(end_min) + ":" #"00" # they don't follow expected pattern
-end_string2 = str(end_hour) + ":" + str(end_min
 # NOTE: THIS DOESNT WORK FOR RKN_ERRLOG FOR 20150402 BECAUSE END_STRING DOESNT APPEAR
 # TODO: MAKE THE ENDPOINT FOR THE ERRLOG READ JUST BE WHEN THE EPOPSOUND PROGRAM CEASES??
 #       OR PERHAPS JUST LOOK FOR A TIME 'GREATER' THAN END_TSTRING?

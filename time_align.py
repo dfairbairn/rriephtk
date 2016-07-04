@@ -56,7 +56,8 @@ output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","
 # TODO:Which time should we look at? 
 # Currently: we will default to looking at 2014-07-08 0700h
 #date = dt.datetime(2014,7,8,1) # THIS DAY ONLY HAS 8 PULSE SEQUENCES ? ALSO: 0100 or 0700???
-date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h (not 0900h)
+#date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h (not 0900h)
+date = dt.datetime(2014,8,7,1)
 
 # Open the Timestamp data
 fname = str(date.year)+  str(two_pad(date.month)) + str(two_pad(date.day)) \
@@ -98,16 +99,21 @@ for i in range(pulses.__len__() - 1):
     p = pulses[i]
     p_nxt = pulses[i+1]
     diff = p_nxt-p
-    if diff < 0: # then the data points straddle a transition from one minute to the next
-        p = p - 60.0
     diffs.append(p_nxt-p)
-
 
 summary = []
 pulse_seq = []
 i = 0
+minutes_count = 0
 while i < diffs.__len__():
-    d1 = diffs[i]
+    d1 = diffs[i] 
+
+    # Implemented a hack to notice minute-to-minute transitions, note them in summary file
+    if d1 < 0: # This may screw up 7 or 8 pulse identification across transitions 
+        d1 = d1 + 60.0 
+        minutes_count = minutes_count + 1
+        summary.append("\n" + two_pad(date.hour) + ":" + two_pad(minutes_count) + "\n")
+    
     if i < diffs.__len__() - 6:
         d2 = diffs[i+1]
         d3 = diffs[i+2]
