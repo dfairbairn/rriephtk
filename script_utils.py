@@ -21,7 +21,7 @@ def ephems_to_datetime(ephem_times):
     assert isinstance(ephem_times, np.ndarray), "Not an array"
  
     # i) Check the seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
-    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s"])
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s", "-u"])
     t_off = float(t_off.split("\n",1)[0]) # extract the integer value
 
     # ii) Do the math.
