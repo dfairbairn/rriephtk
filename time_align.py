@@ -55,9 +55,9 @@ output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","
 
 # TODO:Which time should we look at? 
 # Currently: we will default to looking at 2014-07-08 0700h
-#date = dt.datetime(2014,7,8,1) # THIS DAY ONLY HAS 8 PULSE SEQUENCES ? ALSO: 0100 or 0700???
+date = dt.datetime(2014,7,8,1) # THIS DAY ONLY HAS 8 PULSE SEQUENCES ? ALSO: 0100 or 0700???
 #date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h (not 0900h)
-date = dt.datetime(2014,8,7,1)
+#date = dt.datetime(2014,8,7,1)
 
 # Open the Timestamp data
 fname = str(date.year)+  str(two_pad(date.month)) + str(two_pad(date.day)) \

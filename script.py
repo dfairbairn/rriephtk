@@ -283,6 +283,8 @@ for u in uofs_rads:
     
     for r in relevant_radars:
         outp.write("\n"+str(r) + ": " + str(relevant_radars[r]))
+    outp.write("\nFront FOV and Back FOV (beam,gate) pairs for ephemeris position:\n")
+    outp.write((results[u]).__str__())
     outp.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
     outp.write(rel_lines)
 
