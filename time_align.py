@@ -53,11 +53,14 @@ os.system("fusermount -uq ./data/remote/")
 print "Accessing data files on maxwell, enter your password: "
 output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
 
-# TODO:Which time should we look at? 
+# TODO: Interface/command-line arguments of date to look at?
 # Currently: we will default to looking at 2014-07-08 0700h
 date = dt.datetime(2014,7,8,1) # THIS DAY ONLY HAS 8 PULSE SEQUENCES ? ALSO: 0100 or 0700???
 #date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h (not 0900h)
 #date = dt.datetime(2014,8,7,1)
+
+#TODO: Consider grabbing the RRI ephemeris time info to figure out the specific
+# minutes in 01:00 that matter to us. 
 
 # Open the Timestamp data
 fname = str(date.year)+  str(two_pad(date.month)) + str(two_pad(date.day)) \
@@ -173,8 +176,9 @@ for p in pulse_seq:
 line_num = -1
 search_time = two_pad(date.hour) + ":" + two_pad(date.minute) + ":"
 for line in file_errl:
+    line_num = file_errl.tell()
     if line.find(search_time) != -1:
-        line_num = file_errl.tell()
+        break
 
 
 #ln = file_errl.readline()
@@ -185,7 +189,7 @@ for line in file_errl:
 errl_pulses = []
 errl_ptimes = []
 while file_errl.tell() < (line_num + (400*80)): # TODO: refine the endpoint (tell() is in BYTES)
-    if line.find("Number of Sequences [") != -1:
+    if line.find("Number of sequences [") != -1:
         lp = (line.split(" : ")[2]).split("[")[1] # TODO: wrap this line-splitting business in a parse_pulses function or something
         pulse = int(lp.split("]")[0])
         numof = int((lp.split(" ")[1]).split("\n")[0])
@@ -195,7 +199,19 @@ while file_errl.tell() < (line_num + (400*80)): # TODO: refine the endpoint (tel
     line = file_errl.readline()
 """ 
 
-
+"""
+#A wrapper class for 'file' which tracks line numbers. 
+#TODO: add support for seek() (prob requires noting the byte offset of each line)
+class FileLineWrapper(object): 
+    def __init__(self, f):
+        self.f = f
+        self.line = 0
+    def close(self):
+        return self.f.close()
+    def readline(self):
+        self.line += 1
+        return self.f.readline()
+"""
 
 
 
