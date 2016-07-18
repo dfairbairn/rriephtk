@@ -159,8 +159,10 @@ while i < diffs.__len__():
         i = i  + 1
 
 
-f = open("./data/output/timestamp_sum_"+str(date.year)+str(two_pad(date.month)) + str(two_pad(date.day)) + str(two_pad(date.hour)) + ".dat",'w+')
-f2 = open("./data/output/timestamp_pulses_"+str(date.year)+str(two_pad(date.month)) + str(two_pad(date.day)) + str(two_pad(date.hour)) + ".dat",'w+')
+f = open("./data/output/timestamp_sum_" + date.year+two_pad(date.month) + \
+                    two_pad(date.day) + two_pad(date.hour) + ".dat",'w+')
+f2 = open("./data/output/timestamp_pulses_" + date.year+two_pad(date.month) + \
+                    two_pad(date.day) + two_pad(date.hour) + ".dat",'w+')
 
 for s in summary:
     f.write(s + "\n")
@@ -171,7 +173,6 @@ for p in pulse_seq:
 
 
 # Reading the ERRLOG data!
-
 # Find relevant section of errlog
 line_num = -1
 search_time = two_pad(date.hour) + ":" + two_pad(date.minute) + ":"
@@ -181,7 +182,7 @@ for line in file_errl:
         break
 
 
-#ln = file_errl.readline()
+# ln = file_errl.readline()
 # How much of errlog to analyze for this?
 
 # the main logic:
@@ -190,30 +191,16 @@ errl_pulses = []
 errl_ptimes = []
 while file_errl.tell() < (line_num + (400*80)): # TODO: refine the endpoint (tell() is in BYTES)
     if line.find("Number of sequences [") != -1:
-        lp = (line.split(" : ")[2]).split("[")[1] # TODO: wrap this line-splitting business in a parse_pulses function or something
+        # TODO: wrap this line-splitting business in a parse_pulses function or something
+        lp = (line.split(" : ")[2]).split("[")[1] 
         pulse = int(lp.split("]")[0])
         numof = int((lp.split(" ")[1]).split("\n")[0])
         for i in range(numof):
             errl_pulses.append(pulse)
-            #errl_ptimes.append(lp.split...) # TODO: wrap the timestamp string splitting into parse_ptimes or something
+            # TODO: wrap the timestamp string splitting into parse_ptimes or something
+            #errl_ptimes.append(lp.split...) 
     line = file_errl.readline()
 """ 
-
-"""
-#A wrapper class for 'file' which tracks line numbers. 
-#TODO: add support for seek() (prob requires noting the byte offset of each line)
-class FileLineWrapper(object): 
-    def __init__(self, f):
-        self.f = f
-        self.line = 0
-    def close(self):
-        return self.f.close()
-    def readline(self):
-        self.line += 1
-        return self.f.readline()
-"""
-
-
 
 # Unmount the Maxwell remote mount.
 os.system("fusermount -uq ./data/remote/")
