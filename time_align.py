@@ -32,48 +32,29 @@ from script_utils import *
 
 import bz2
 
-# Test if directory structure with ./data, ./data/output, ./data/remote exist
-if not os.path.isdir('./data'):
-    os.system('mkdir ./data')
-    print "Creating script directory 'data/'."
-if not os.path.isdir('./data/output'):
-    os.system('mkdir ./data/output')
-    print "Creating script directory 'data/output/'."
-if not os.path.isdir('./data/remote'):
-    os.system('mkdir ./data/remote')
-    print "Creating script directory 'data/remote/'."
-
-# The sshfs tool is used to mount Maxwell's data directory locally.
-# 
-# First, the script unmounts anything currently already mounted in the mounting
-# directory (using os.system so that if nothing is there it doesnt crash the 
-# script).
-if subprocess.check_output(["hostname"]) != "maxwell":
-
-    os.system("fusermount -uq ./data/remote/")
-    print "Accessing data files on maxwell, enter your password: "
-    output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
-
 
 # TODO: Interface/command-line arguments of date to look at?
-# Currently: we will default to looking at 2014-07-08 0700h
-date = dt.datetime(2014,7,8,1) # THIS DAY ONLY HAS 8 PULSE SEQUENCES ? ALSO: 0100 or 0700???
-#date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h (not 0900h)
-#date = dt.datetime(2014,8,7,1)
+# Currently: we will default to looking at 2014-07-08 0100h
+date = dt.datetime(2014,7,8,1) 
+#date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h
 
-#TODO: Consider grabbing the RRI ephemeris time info to figure out the specific
-# minutes in 01:00 that matter to us. 
+import init
+data_path = init.initialize_data()
 
 # Open the Timestamp data
+file_stamps = init.open_tstamps(data_path, date)
+"""
 fname = str(date.year)+  str(two_pad(date.month)) + str(two_pad(date.day)) \
 + "." + str(two_pad(date.hour))+ str(two_pad(date.minute)) + ".timestampdata.bz2"
 
-file_stamps = bz2.BZ2File("./data/remote/epop/" + fname)
-
+file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
+"""
 
 # Open the Saskatoon Errlog
-rcode = 'sas' 
-fpath = "./data/remote/" + rcode + "_errlog/"
+rcode = 'sas' # If we had another Timestamper, this could be an input parameter
+file_errl = init.open_errlog(data_path, rcode, date)
+"""
+fpath = data_path + rcode + "_errlog/" #/path/to/data/ + sas + _errlog/
 fname_reg = str(date.year) + str(two_pad(date.month)) + str(two_pad(date.day)) \
                                                  + "." + rcode + ".errlog"
 fname_bz2 = fname_reg + ".bz2"
@@ -87,6 +68,7 @@ elif os.path.exists(fpath + fname_reg):
 else:
     logging.error("No ERRLOG file found!") 
     exit()
+"""
 
 # Reading Timestamp data, acquiring timing differences
 end = False
@@ -161,9 +143,9 @@ while i < diffs.__len__():
         i = i  + 1
 
 
-f = open("./data/output/timestamp_sum_" + date.year+two_pad(date.month) + \
+f = open("./data/output/timestamp_sum_" + str(date.year) + two_pad(date.month) + \
                     two_pad(date.day) + two_pad(date.hour) + ".dat",'w+')
-f2 = open("./data/output/timestamp_pulses_" + date.year+two_pad(date.month) + \
+f2 = open("./data/output/timestamp_pulses_" + str(date.year) + two_pad(date.month) + \
                     two_pad(date.day) + two_pad(date.hour) + ".dat",'w+')
 
 for s in summary:

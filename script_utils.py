@@ -182,9 +182,8 @@ def two_pad(in_time):
 
 
 """
-TESTING
--------
 
+TESTING
 
 """
 if __name__ == "__main__":
