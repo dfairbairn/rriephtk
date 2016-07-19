@@ -21,7 +21,6 @@ on average, discrete corrections that average about 0.5 seconds.
 
 """
 
-
 import datetime as dt
 import numpy as np
 
@@ -49,9 +48,12 @@ if not os.path.isdir('./data/remote'):
 # First, the script unmounts anything currently already mounted in the mounting
 # directory (using os.system so that if nothing is there it doesnt crash the 
 # script).
-os.system("fusermount -uq ./data/remote/")
-print "Accessing data files on maxwell, enter your password: "
-output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
+if subprocess.check_output(["hostname"]) != "maxwell":
+
+    os.system("fusermount -uq ./data/remote/")
+    print "Accessing data files on maxwell, enter your password: "
+    output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
+
 
 # TODO: Interface/command-line arguments of date to look at?
 # Currently: we will default to looking at 2014-07-08 0700h
