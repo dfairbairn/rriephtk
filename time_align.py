@@ -1,7 +1,7 @@
 """
 file: 'time_align.py'
 author: David Fairbairn
-date: 27th June 2016
+date: June 2016
 
 The need for a script that looks at timestampdata (currently only relevant for
 the Saskatoon SuperDARN radar) to the errlog files' erroneous timestamps
