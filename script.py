@@ -22,6 +22,7 @@ import numpy as np
 import timeit
 import math
 
+import init
 
 # -------------------------------- PART 1 --------------------------------------
 #                              INITIALIZATION 
@@ -32,6 +33,7 @@ import math
 # the script will use the RRI file for April 2nd of 2015.
 #
 
+"""
 # Test if directory structure with ./data, ./data/output, ./data/remote exist
 if not os.path.isdir('./data'):
     os.system('mkdir ./data')
@@ -67,6 +69,8 @@ output = subprocess.check_output(["sshfs", username + "@maxwell.usask.ca:/data/"
 
 
 # Some extra code tidbits that can be deleted when I want
+"""
+data_path,dat_fname = init.initialize_data()
 
 # Creating an FOV
 site = pydarn.radar.site(code='inv')
@@ -221,6 +225,9 @@ end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
 
 start_string = str(st_hour) + ":" +  str(st_min) + ":" # "00" # Omit seconds for now in case
 end_string = str(end_hour) + ":" + str(end_min) + ":" #"00" # they don't follow expected pattern
+print "Start time to search for: " + start_string + "\nEnd time to search for: " + end_string
+
+
 # NOTE: THIS DOESNT WORK FOR RKN_ERRLOG FOR 20150402 BECAUSE END_STRING DOESNT APPEAR
 # TODO: MAKE THE ENDPOINT FOR THE ERRLOG READ JUST BE WHEN THE EPOPSOUND PROGRAM CEASES??
 #       OR PERHAPS JUST LOOK FOR A TIME 'GREATER' THAN END_TSTRING?
@@ -233,6 +240,7 @@ for u in uofs_rads:
     rcode = (nw.getRadarByName(u)).code[0]
     plot_fov_sat(u,start,geog_longs,geog_lats,suppress_show=True) 
 
+    """
     fname_bz2 = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"
     fname_reg = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog"
     fpath = "./data/remote/" + rcode + "_errlog/"
@@ -246,6 +254,9 @@ for u in uofs_rads:
     else:
         logging.error("No ERRLOG file found!")
         exit()
+    """
+
+    f = init.open_errlog(data_path, rcode, start) 
 
     # With the file open, search for the desired time interval's beginning.
     # Search for the position of the first line of interest
@@ -254,7 +265,7 @@ for u in uofs_rads:
         ln = f.readline()
         if ln.find(start_string) != -1:
             found = True
-            start_line = f.tell()
+            start_line = f.line
             print str(start_line) + ": " + ln
     # Now search for the position of the final line of interest
     found = False
@@ -262,18 +273,18 @@ for u in uofs_rads:
         ln = f.readline()
         if ln.find(end_string) != -1:
             found = True
-            end_line = f.tell()
+            end_line = f.line
             print str(end_line) + ": " + ln
-        elif f.tell > (start_line + 1000000): #1000000 bytes
-            end_line = start_line + 1000000
+        elif f.line > (start_line + 400): #1000000 bytes
+            end_line = start_line + 400 
             found = True
             print str(end_line) + ": " + ln
 
     # Having determined the relevant line of text in the errlog file, grab all the
     # relevant errlog data spanning the ephemeris file
-    f.seek(start_line) 
+    f.seekline(start_line) 
     rel_lines = f.readline()
-    while f.tell() <= end_line:
+    while f.line <= end_line:
         rel_lines = rel_lines + f.readline()
 
     outp = open("./data/output/"+(str(start.year)+st_month+st_day+"_"+st_hour+st_min+"_"+rcode+".dat"),"w+")

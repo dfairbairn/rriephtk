@@ -88,7 +88,7 @@ def ephem_to_datetime(ephem):
         dtime (datetime.datetime): a datetime object for the time given in ephem 
     """    
     assert ephem >= 0
-    assert isinstance(ephem, int)
+    assert isinstance(ephem, float)
 
     # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
     # -u parameter required to ensure offset is in UTC. +%s specifies output in seconds.

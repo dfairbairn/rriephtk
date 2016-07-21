@@ -154,8 +154,6 @@ for s in summary:
 for p in pulse_seq:
     f2.write(p + "\n")
 
-
-
 # Reading the ERRLOG data!
 # Find relevant section of errlog
 line_num = -1

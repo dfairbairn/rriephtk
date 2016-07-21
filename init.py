@@ -27,9 +27,10 @@ def initialize_data():
         - none - 
 
     ** RETURNS **
-        data_path (string): A string containing the path to the root Maxwell
-                            data, either remote or otherwise.
-
+        data_path (string):     A string containing the path to the root Maxwell
+                                data, either remote or otherwise.
+        data_fname (string):    A string containing the path and filename for the
+                                RRI data e.g. ./data/RRI_20150402_032244_033241_lv1_v2.h5 
     """
     # Test if directory structure with ./data, ./data/output, ./data/remote exist
     if not os.path.isdir('./data'):
@@ -42,7 +43,19 @@ def initialize_data():
         os.system('mkdir ./data/remote')
         print "Creating script directory 'data/remote/'."
 
+    # Check which data file is to be used based on command-line arguments
+    import sys
+    if sys.argv.__len__() == 2 and isinstance(sys.argv[1], str):
+        dat_fname = sys.argv[1]
+    else:
+        print "No RRI file specified - going with default..."
+        dat_fname = "./data/RRI_20150402_032244_033241_lv1_v2.h5" # An RRI data file
     
+    if not os.path.exists(dat_fname):
+        print "No RRI file by that name. Exitting."
+        exit()
+
+    # Check to see if we're running on Maxwell, and if not, mount Maxwell SuperDARN data remotely
     if subprocess.check_output(["hostname"]) == "maxwell":
         print "Running on Maxwell: no remote mounting is necessary."
         data_path = "/data/" # If on Maxwell, don't do mounting
@@ -57,7 +70,7 @@ def initialize_data():
         output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
         data_path = "./data/remote/" # Set the data path to where we just mounted Maxwell data
  
-    return data_path
+    return data_path,dat_fname
 
 def open_errlog(data_path, rcode, date):
     """
