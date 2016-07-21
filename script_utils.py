@@ -42,9 +42,11 @@ class FileLineWrapper(object):
     def readline(self):
         """  """
         self.line += 1
+        
         return self.f.readline()
     def seekline(self,line_num):
-        """  """ 
+        """ Go to the nth line in the file. """ 
+        self.line = line_num
         self.f.seek(self.line_offs[line_num - 1])
 
 def ephems_to_datetime(ephem_times):
@@ -201,10 +203,12 @@ if __name__ == "__main__":
     assert(fw.line_offs.__len__() > 0)
     assert(fw.line_offs[2] == offs)
     fw.seekline(3) 
+
     assert(fw.readline() == line)
     linen1 = fw.line
     fw.readline()
     assert(linen1 + 1 == fw.line)
+
 
     # Testing ephem_to_datetime():
     tst_dt1 = dt.datetime(1968,5,24)

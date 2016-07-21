@@ -160,31 +160,26 @@ for p in pulse_seq:
 # Find relevant section of errlog
 line_num = -1
 search_time = two_pad(date.hour) + ":" + two_pad(date.minute) + ":"
-for line in file_errl:
-    line_num = file_errl.tell()
-    if line.find(search_time) != -1:
+for ln in file_errl.f: #TODO: don't iterate on file_errl! fw objects not iterable
+    line_num = file_errl.line
+    if ln.find(search_time) != -1:
         break
 
 
-# ln = file_errl.readline()
+ln = file_errl.readline()
 # How much of errlog to analyze for this?
 
 # the main logic:
-"""
 errl_pulses = []
 errl_ptimes = []
-while file_errl.tell() < (line_num + (400*80)): # TODO: refine the endpoint (tell() is in BYTES)
-    if line.find("Number of sequences [") != -1:
-        # TODO: wrap this line-splitting business in a parse_pulses function or something
-        lp = (line.split(" : ")[2]).split("[")[1] 
-        pulse = int(lp.split("]")[0])
-        numof = int((lp.split(" ")[1]).split("\n")[0])
+while file_errl.line < (line_num + (400)): # TODO: refine the endpoint 
+    if ln.find("Number of sequences [") != -1:
+        pulse,numof = parse_pulses(ln)
+        ptime = parse_ptimes(ln)
         for i in range(numof):
             errl_pulses.append(pulse)
-            # TODO: wrap the timestamp string splitting into parse_ptimes or something
-            #errl_ptimes.append(lp.split...) 
-    line = file_errl.readline()
-""" 
+            errl_ptimes.append(ptime)
+    ln = file_errl.readline()
 
 # Unmount the Maxwell remote mount.
 os.system("fusermount -uq ./data/remote/")

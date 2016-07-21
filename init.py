@@ -85,7 +85,7 @@ def open_errlog(data_path, rcode, date):
     else:
         logging.error("No ERRLOG file found!") 
         exit()
-    return file_errl
+    return FileLineWrapper(file_errl)
 
 def open_tstamps(data_path, date):
     """
@@ -102,7 +102,17 @@ def open_tstamps(data_path, date):
     fname = str(date.year) + str(two_pad(date.month)) + str(two_pad(date.day)) \
      + "." + str(two_pad(date.hour)) + "00" + ".timestampdata.bz2"
     file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
-    return file_stamps    
+    return FileLineWrapper(file_stamps)
+
+def parse_pulses(ln):
+    lp = (ln.split(" : ")[2]).split("[")[1] 
+    pulse = int(lp.split("]")[0])
+    numof = int((lp.split(" ")[1]).split("\n")[0])
+    return pulse,numof 
+
+def parse_ptimes(ln):
+    timestring = ln.split(" ")[4]
+    return timestring
 
 """
 
