@@ -117,22 +117,12 @@ def open_tstamps(data_path, date):
     file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
     return FileLineWrapper(file_stamps)
 
-def parse_pulses(ln):
-    lp = (ln.split(" : ")[2]).split("[")[1] 
-    pulse = int(lp.split("]")[0])
-    numof = int((lp.split(" ")[1]).split("\n")[0])
-    return pulse,numof 
-
-def parse_ptimes(ln):
-    timestring = ln.split(" ")[4]
-    return timestring
-
 """
 
 TESTING
 
 """
 if __name__ == "__main__":
-    data_path = initialize_data()
+    data_path,dat_fname = initialize_data()
     file_errl = open_errlog(data_path, 'sas', dt.datetime(2014,7,8))
     file_tstamps = open_tstamps(data_path, dt.datetime(2014,7,8))

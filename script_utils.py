@@ -88,7 +88,8 @@ def ephem_to_datetime(ephem):
         dtime (datetime.datetime): a datetime object for the time given in ephem 
     """    
     assert ephem >= 0
-    assert isinstance(ephem, float)
+    import numbers
+    assert isinstance(ephem, numbers.Number)
 
     # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
     # -u parameter required to ensure offset is in UTC. +%s specifies output in seconds.
@@ -182,6 +183,40 @@ def two_pad(in_time):
     assert (in_time < 100 and in_time >= 0)
     return "0" + str(in_time) if str(in_time).__len__() == 1 else str(in_time)
 
+def parse_pulses(ln):
+    lp = (ln.split(" : ")[2]).split("[")[1] 
+    pulse = int(lp.split("]")[0])
+    numof = int((lp.split(" ")[1]).split("\n")[0])
+    return pulse,numof 
+
+def parse_ptimes(ln):
+    timestring = ln.split(" ")[4]
+    return timestring
+
+def get_rri_ephemeris(dat_fname):
+    import h5py
+    f = h5py.File(dat_fname)
+    geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
+    geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
+    ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
+    return geog_longs,geog_lats,ephem_times
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    from math import radians, cos, sin, asin, sqrt
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
 
 """
 

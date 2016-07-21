@@ -39,7 +39,7 @@ date = dt.datetime(2014,7,8,1)
 #date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h
 
 import init
-data_path = init.initialize_data()
+data_path,dat_fname = init.initialize_data()
 
 # Open the Timestamp data
 file_stamps = init.open_tstamps(data_path, date)
@@ -158,11 +158,12 @@ for p in pulse_seq:
 # Find relevant section of errlog
 line_num = -1
 search_time = two_pad(date.hour) + ":" + two_pad(date.minute) + ":"
-for ln in file_errl.f: #TODO: don't iterate on file_errl! fw objects not iterable
+found = False
+while not found:
     line_num = file_errl.line
+    ln = file_errl.readline()
     if ln.find(search_time) != -1:
         break
-
 
 ln = file_errl.readline()
 # How much of errlog to analyze for this?
