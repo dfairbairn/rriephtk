@@ -184,16 +184,25 @@ def two_pad(in_time):
     return "0" + str(in_time) if str(in_time).__len__() == 1 else str(in_time)
 
 def parse_pulses(ln):
+    """ 
+    A little mini function for taking a line in an errlog file and grabbing the pulse number.
+    """
     lp = (ln.split(" : ")[2]).split("[")[1] 
     pulse = int(lp.split("]")[0])
     numof = int((lp.split(" ")[1]).split("\n")[0])
     return pulse,numof 
 
 def parse_ptimes(ln):
+    """
+    Mini function for getting the time (in a string) from a line of an errlog file.
+    """
     timestring = ln.split(" ")[4]
     return timestring
 
 def get_rri_ephemeris(dat_fname):
+    """
+    A function which returns the important ephemeris data, given an RRI h5 file.
+    """
     import h5py
     f = h5py.File(dat_fname)
     geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
