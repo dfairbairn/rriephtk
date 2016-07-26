@@ -38,11 +38,11 @@ import bz2
 date = dt.datetime(2014,7,8,1) 
 #date = dt.datetime(2015,4,2,3) # THIS DAY SHOULD HAVE BOTH. ONLY HAS BOTH AT 0300h
 
-import init
-data_path,dat_fname = init.initialize_data()
+from data_utils import * # for initialize_data(), open_tstamps(), open_errlog()
+data_path,dat_fname = initialize_data() 
 
 # Open the Timestamp data
-file_stamps = init.open_tstamps(data_path, date)
+file_stamps = open_tstamps(data_path, date)
 """
 fname = str(date.year)+  str(two_pad(date.month)) + str(two_pad(date.day)) \
 + "." + str(two_pad(date.hour))+ str(two_pad(date.minute)) + ".timestampdata.bz2"
@@ -52,7 +52,7 @@ file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
 
 # Open the Saskatoon Errlog
 rcode = 'sas' # If we had another Timestamper, this could be an input parameter
-file_errl = init.open_errlog(data_path, rcode, date)
+file_errl = open_errlog(data_path, rcode, date)
 """
 fpath = data_path + rcode + "_errlog/" #/path/to/data/ + sas + _errlog/
 fname_reg = str(date.year) + str(two_pad(date.month)) + str(two_pad(date.day)) \

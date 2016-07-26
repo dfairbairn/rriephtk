@@ -22,7 +22,7 @@ import numpy as np
 import timeit
 import math
 
-import init
+from data_utils import * # for initialize_data(), etc.
 
 # -------------------------------- PART 1 --------------------------------------
 #                              INITIALIZATION 
@@ -70,7 +70,7 @@ output = subprocess.check_output(["sshfs", username + "@maxwell.usask.ca:/data/"
 
 # Some extra code tidbits that can be deleted when I want
 """
-data_path,dat_fname = init.initialize_data()
+data_path,dat_fname = initialize_data()
 
 # Creating an FOV
 site = pydarn.radar.site(code='inv')
@@ -256,7 +256,7 @@ for u in uofs_rads:
         exit()
     """
 
-    f = init.open_errlog(data_path, rcode, start) 
+    f = open_errlog(data_path, rcode, start) 
 
     # With the file open, search for the desired time interval's beginning.
     # Search for the position of the first line of interest
