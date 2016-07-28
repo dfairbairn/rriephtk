@@ -117,6 +117,29 @@ def open_tstamps(data_path, date):
     file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
     return FileLineWrapper(file_stamps)
 
+def get_stamp_pulses(file_stamps):
+    # Reading Timestamp data, acquiring timing differences
+    end = False
+    pulses = []
+    while end != True:
+        ln = file_stamps.readline()
+        if ln == '':
+            end = True
+        elif ln.find("SEC") != -1:
+            time = float((ln.split(" = ")[1]).split("\n")[0])
+            pulses.append(time)
+    return pulses
+
+def get_diffs(pulses):
+    """ Returns a list of time differences between the pulse times given, corresponding 1 - for - 1 """
+    diffs = []
+    for i in range(pulses.__len__() - 1):
+        p = pulses[i]
+        p_nxt = pulses[i+1]
+        diff = p_nxt-p
+        diffs.append(p_nxt-p)
+    return diffs
+
 """
 
 TESTING
