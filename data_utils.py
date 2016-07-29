@@ -72,6 +72,25 @@ def initialize_data():
  
     return data_path,dat_fname
 
+def get_rri_ephemeris(dat_fname):
+    """
+    A function which returns the important ephemeris data, given an RRI h5 file.
+    """
+    import h5py
+    f = h5py.File(dat_fname)
+    geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
+    geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
+    ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
+    return geog_longs,geog_lats,ephem_times
+
+def get_hdf5(dat_fname):
+    """
+    A function which mostly just wraps the use of the h5py library.
+    """
+    import h5py
+    f = h5py.File(dat_fname)
+    return f
+
 def open_errlog(data_path, rcode, date):
     """
     A function that can make opening errlog files a re-usable action?

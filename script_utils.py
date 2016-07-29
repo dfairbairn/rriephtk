@@ -199,17 +199,6 @@ def parse_ptimes(ln):
     timestring = ln.split(" ")[4]
     return timestring
 
-def get_rri_ephemeris(dat_fname):
-    """
-    A function which returns the important ephemeris data, given an RRI h5 file.
-    """
-    import h5py
-    f = h5py.File(dat_fname)
-    geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
-    geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
-    ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
-    return geog_longs,geog_lats,ephem_times
-
 def haversine(lon1, lat1, lon2, lat2):
     """
     Calculate the great circle distance between two points 
