@@ -1,16 +1,15 @@
 
 import matplotlib.pyplot as plt
 from script_utils import *
+from data_utils import *
 
 import math
 import numpy as np
 import sys
 
-
-
 # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
-geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
-index_inversion = 167 #for 18th
+#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
+#index_inversion = 167 #for 18th
 
 #index_inversion = 178 #for 19th
 #geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
@@ -18,6 +17,11 @@ index_inversion = 167 #for 18th
 #index_inversion = 213 #for 20th
 #geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
 
+#index_inversion = 205 #?? for 21st?
+#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
+
+index_inversion = 222 #for 22nd
+geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
 
 ottawa_long = (-75.6972+360.)%360.0 # Make it positive valued
 ottawa_lat = 45.4215
@@ -42,6 +46,8 @@ for i in range(np.size(geog_longs)):
     latdists.append(latdist)
 
 appr_time = times[shortest]
+
+m = plotUtils.mapObj(lat_0=38.0, lon_0=-76.0, width=111e3*6, height=111e3*16, coords='geo')
 
 plt.plot(ottawa_long,ottawa_lat,'ro',label="Ottawa")
 plt.plot(geog_longs,geog_lats,label="EPOP ground track")
