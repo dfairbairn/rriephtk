@@ -98,7 +98,7 @@ plt.show()
 # A different font for the legend etc. might be nice
 #fig = plt.figure()
 font = {'fontname':'Computer Modern'}
-m = plotUtils.mapObj(lat_0=38.0, lon_0=-76.0, width=111e3*80, height=111e3*60, coords='geo',datetime=times[0])
+m = plotUtils.mapObj(lat_0=48.0, lon_0=-76.0, width=111e3*20, height=111e3*30, coords='geo',datetime=times[0])
 
 # FIRST: Plot the location of Ottawa
 x,y = m(ottawa_long,ottawa_lat,coords='geo')
@@ -121,27 +121,65 @@ x,y = m(inversion_ephem_long,inversion_ephem_lat,coords='geo')
 m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
 
 # SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
-merid1_mlat = merid2_mlat = merid3_mlat = np.arange(6)*18
-merid1_mlon = merid1_mlat*0. - 20.
+merid1_mlat = merid2_mlat = merid3_mlat = np.arange(91)
+merid1_mlon = merid1_mlat*0. - 10.
 merid2_mlon = merid2_mlat*0.
-merid3_mlon = merid3_mlat*0. + 20.
-zero_alts = merid2_mlon
+merid3_mlon = merid3_mlat*0. + 10.
+paral1_mlon = paral2_mlon = paral3_mlon = np.arange(91) - 45.
+paral1_mlat = paral1_mlon*0. + 55.
+paral2_mlat = paral2_mlon*0. + 60.
+paral3_mlat = paral3_mlon*0. + 65.
 
+zero_alts = merid2_mlon
+"""
 merid1_glat,merid1_glon,r = aacgm.aacgmConvArr(merid1_mlat.tolist(),merid1_mlon.tolist(),zero_alts.tolist(),2016,1)
 merid2_glat,merid2_glon,r = aacgm.aacgmConvArr(merid2_mlat.tolist(),merid2_mlon.tolist(),zero_alts.tolist(),2016,1)
 merid3_glat,merid3_glon,r = aacgm.aacgmConvArr(merid3_mlat.tolist(),merid3_mlon.tolist(),zero_alts.tolist(),2016,1)
+paral1_glat,paral1_glon,r = aacgm.aacgmConvArr(paral1_mlat.tolist(),paral1_mlon.tolist(),zero_alts.tolist(),2016,1)
+paral2_glat,paral2_glon,r = aacgm.aacgmConvArr(paral2_mlat.tolist(),paral2_mlon.tolist(),zero_alts.tolist(),2016,1)
+paral3_glat,paral3_glon,r = aacgm.aacgmConvArr(paral3_mlat.tolist(),paral3_mlon.tolist(),zero_alts.tolist(),2016,1)
 
-x,y = m(merid1_glon, merid1_glat, coords='geo')
-m.plot(x,y,'k',label="Line of Magnetic Longitude of -20 Degrees")
+x,y = m(merid1_glon, merid1_glat, coords='mag')#coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
 
-x,y = m(merid2_glon, merid2_glat, coords='geo')
-m.plot(x,y,'k',label="Line of Magnetic Longitude of 0 Degrees")
+x,y = m(merid2_glon, merid2_glat, coords='mag')#coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of 0 Degrees")
 
-x,y = m(merid3_glon, merid3_glat, coords='geo')
-m.plot(x,y,'k',label="Line of Magnetic Longitude of +20 Degrees")
+x,y = m(merid3_glon, merid3_glat, coords='mag')#coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of +20 Degrees")
+
+x,y = m(paral1_glon, paral1_glat, coords='mag')#coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +35 Degrees")
+
+x,y = m(paral2_glon, paral2_glat, coords='mag')#coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +55 Degrees")
+
+x,y = m(paral3_glon, paral3_glat, coords='mag')# coords='geo')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
+"""
+
+x,y = m(merid1_mlon, merid1_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
+
+x,y = m(merid2_mlon, merid2_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of 0 Degrees")
+
+x,y = m(merid3_mlon, merid3_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Longitude of +20 Degrees")
+
+x,y = m(paral1_mlon, paral1_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +35 Degrees")
+
+x,y = m(paral2_mlon, paral2_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +55 Degrees")
+
+x,y = m(paral3_mlon, paral3_mlat, coords='mag')
+m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
+
+# DIP ANGLE STUFF
 
 plt.xlabel('Geographic Longitude (degrees)')
 plt.ylabel('Geographic Latitude (degrees)')
 plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
-plt.legend()
+#plt.legend(loc='best')
 plt.show()
