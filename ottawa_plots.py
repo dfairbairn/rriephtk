@@ -19,7 +19,8 @@ description: This file contains code used to produce fly-by plots of CASSIOPE
 from script_utils import *
 from data_utils import *
 
-from davitpy.utils import *
+from davitpy.utils import plotUtils
+from davitpy.models import aacgm
 
 import math
 #import matplotlib.pyplot as plt
@@ -95,8 +96,9 @@ plt.legend()
 plt.show()
 """
 # A different font for the legend etc. might be nice
+#fig = plt.figure()
 font = {'fontname':'Computer Modern'}
-m = plotUtils.mapObj(lat_0=38.0, lon_0=-76.0, width=111e3*20, height=111e3*50, coords='geo',datetime=times[0])
+m = plotUtils.mapObj(lat_0=38.0, lon_0=-76.0, width=111e3*80, height=111e3*60, coords='geo',datetime=times[0])
 
 # FIRST: Plot the location of Ottawa
 x,y = m(ottawa_long,ottawa_lat,coords='geo')
@@ -118,8 +120,28 @@ m.plot(x,y,'g')
 x,y = m(inversion_ephem_long,inversion_ephem_lat,coords='geo')
 m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
 
-plt.xlabel('Geographic Longitude (degrees)',**font)
-plt.ylabel('Geographic Latitude (degrees)',**font)
-plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day),**font)
+# SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
+merid1_mlat = merid2_mlat = merid3_mlat = np.arange(6)*18
+merid1_mlon = merid1_mlat*0. - 20.
+merid2_mlon = merid2_mlat*0.
+merid3_mlon = merid3_mlat*0. + 20.
+zero_alts = merid2_mlon
+
+merid1_glat,merid1_glon,r = aacgm.aacgmConvArr(merid1_mlat.tolist(),merid1_mlon.tolist(),zero_alts.tolist(),2016,1)
+merid2_glat,merid2_glon,r = aacgm.aacgmConvArr(merid2_mlat.tolist(),merid2_mlon.tolist(),zero_alts.tolist(),2016,1)
+merid3_glat,merid3_glon,r = aacgm.aacgmConvArr(merid3_mlat.tolist(),merid3_mlon.tolist(),zero_alts.tolist(),2016,1)
+
+x,y = m(merid1_glon, merid1_glat, coords='geo')
+m.plot(x,y,'k',label="Line of Magnetic Longitude of -20 Degrees")
+
+x,y = m(merid2_glon, merid2_glat, coords='geo')
+m.plot(x,y,'k',label="Line of Magnetic Longitude of 0 Degrees")
+
+x,y = m(merid3_glon, merid3_glat, coords='geo')
+m.plot(x,y,'k',label="Line of Magnetic Longitude of +20 Degrees")
+
+plt.xlabel('Geographic Longitude (degrees)')
+plt.ylabel('Geographic Latitude (degrees)')
+plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
 plt.legend()
 plt.show()
