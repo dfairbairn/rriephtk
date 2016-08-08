@@ -159,6 +159,83 @@ def get_diffs(pulses):
         diffs.append(p_nxt-p)
     return diffs
 
+def determine_offset(pulse_times_a, pulse_seqs_a, pulse_times_b, pulse_seqs_b):
+    """
+    This function determines a discrete offset by which the first list of pulse
+    sequences can be shifted so as to make the pulses with the same index in 
+    each list be most similar.
+    e.g.
+    [3,4,3,2]
+
+    """
+    return -1, 0
+
+def determine_shift_offset(lst_a, lst_b):
+    """
+    Determines the optimal shifting of one sequence with respect to the other
+    so that the most list entries with the same indices are equal between the
+    two lists.
+    
+    ** PARAMS **
+        lst_a (list): the first list, which the function hopes is the smaller.
+        lst_b (list): the second list.
+
+    ** RETURNS **
+        offset (integer): the offset from lst_a with respect to lst_b yielding
+                        optimal matching between the two lists.
+        quality (integer): 0 for poor confidence, 1 for strong confidence
+    """
+    assert isinstance(lst_a, list)
+    assert isinstance(lst_b, list)
+    lst_a_len =  lst_a.__len__()
+    # Ensure lst_a is the shorter list
+    if lst_a_len > lst_b.__len__():
+        return determine_shift_offset(lst_b, lst_a) 
+    
+    # Loop through a reasonable different number of integer index shifts to try 
+    # The first one we try should be no shift whatsoever, and if there's 100% 
+    # overlap, don't bother trying anything else (???).
+    #for i in range(lst_a_len):
+    best_overlap = evaluate_difference(a,b)
+    best_overlap_index = 0
+    if best_overlap == 1.0:
+        # Optimal overlap already
+        confidence = 1
+        return best_overlap_index, confidence
+    #TODO: Should we collect several  ?
+
+    lst_b_len = lst_b.__len__()
+    lst_b_fwd = lst_b_bck = lst_b
+    for i in range(lst_a_len):
+        lst_b_fwd = lst_b_fwd[1:lst_b_len] + [lst_b_fwd[0]] # rotate forward   
+        overlap = evaluate_difference(lst_a, lst_b_fwd)
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_overlap_index = i # TODO: do I need to negate this?
+
+        lst_b_bck = [lst_b_bck[-1]] + lst_b_bck[0:-1]        
+        overlap = evaluate_difference(lst_a, lst_b_bck)
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_overlap_index = i # TODO: ^^ditto answer this question
+    return -1, 0 #TODO: Confidence/quality of answer???
+
+def evaluate_difference(lst_a, lst_b):
+    """
+    Determines how much overlap there is between the two input lists.
+    """
+    assert isinstance(lst_a, list)
+    assert isinstance(lst_b, list)
+    lst_a_len =  lst_a.__len__()
+    if lst_a_len > lst_b.__len__():
+        return evaluate_difference(lst_b, lst_a) 
+    diff = 0.0
+    for i in range(lst_a_len):
+        if lst_a[i] != lst_b[i]:
+            diff = diff + 1.0
+    # The score will be an overlap percentage
+    return (lst_a_len - diff)/lst_a_len
+
 """
 
 TESTING

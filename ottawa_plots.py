@@ -193,7 +193,6 @@ for n in range(N):
     x,y = m(paral_mlon, paral_mlat, coords='mag')
     m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
 
-
 # TODO: DIP ANGLE STUFF
 
 plt.xlabel('Geographic Longitude (degrees)')
