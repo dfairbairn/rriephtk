@@ -167,17 +167,15 @@ for n in range(N):
 
 
 itype = 1 #Geodetic coordinates
-pyDate = dt(2006,2,23)
+pyDate = times[0] # The first time we pull from the RRI file
 date = utils.dateToDecYear(pyDate) # decimal year
-alt = 300. # altitude
-stp = 5.
+alt = 300. # altitude #TODO: grab altitudes for series of satellite positions we care about.
+stp = 5. #
 xlti, xltf, xltd = -90.,90.,stp # latitude start, stop, step
 xlni, xlnf, xlnd = -180.,180.,stp # longitude start, stop, step
 ifl = 0 # Main field
 # Call fortran subroutine
 lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
-
-
 
 
 """
