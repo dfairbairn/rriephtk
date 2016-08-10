@@ -20,7 +20,11 @@ from script_utils import *
 from data_utils import *
 
 from davitpy.utils import plotUtils
+from davitpy import utils
 from davitpy.models import aacgm
+from davitpy.models import igrf
+
+from datetime import datetime as dt
 
 import math
 #import matplotlib.pyplot as plt
@@ -80,27 +84,11 @@ shortest_ephem_lat = float(geog_lats[shortest])
 inversion_ephem_long = float(geog_longs[index_inversion])
 inversion_ephem_lat = float(geog_lats[index_inversion])
 
-"""
-# From when we weren't bothering to try to print on a background map of the world.
-plt.plot(ottawa_long,ottawa_lat,'ro',label="Ottawa")
-plt.plot(geog_longs,geog_lats,label="EPOP ground track")
-plt.plot([geog_longs[shortest], ottawa_long],[geog_lats[shortest], ottawa_lat],'g')
-plt.plot(geog_longs[shortest],geog_lats[shortest],'bo',label=("Shortest Approach at " + str(appr_time)))
-
-plt.plot(geog_longs[index_inversion],geog_lats[index_inversion],'yo',label=("Inversion of Faraday Rotation"))
-
-plt.xlabel('Geographic Longitude (degrees)')
-plt.ylabel('Geographic Latitude (degrees)')
-plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
-plt.legend()
-plt.show()
-"""
 # A different font for the legend etc. might be nice
 #fig = plt.figure()
 font = {'fontname':'Computer Modern'}
 #m = plotUtils.mapObj(lat_0=48.0, lon_0=-76.0, width=111e3*20, height=111e3*30, coords='geo',datetime=times[0])
 m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=111e3*180, height=111e3*90, coords='geo',datetime=times[0])
-
 
 # FIRST: Plot the location of Ottawa
 x,y = m(ottawa_long,ottawa_lat,coords='geo')
@@ -135,26 +123,6 @@ paral3_mlat = paral3_mlon*0. + 65.
 
 zero_alts = merid2_mlon
 
-x,y = m(merid1_mlon, merid1_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
-
-x,y = m(merid2_mlon, merid2_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Longitude of 0 Degrees")
-
-x,y = m(merid3_mlon, merid3_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Longitude of +20 Degrees")
-
-x,y = m(paral1_mlon, paral1_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +35 Degrees")
-
-x,y = m(paral2_mlon, paral2_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +55 Degrees")
-
-x,y = m(paral3_mlon, paral3_mlat, coords='mag')
-m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
-"""
-
-"""
 merid1_glat,merid1_glon,r = aacgm.aacgmConvArr(merid1_mlat.tolist(),merid1_mlon.tolist(),zero_alts.tolist(),2016,1)
 merid2_glat,merid2_glon,r = aacgm.aacgmConvArr(merid2_mlat.tolist(),merid2_mlon.tolist(),zero_alts.tolist(),2016,1)
 merid3_glat,merid3_glon,r = aacgm.aacgmConvArr(merid3_mlat.tolist(),merid3_mlon.tolist(),zero_alts.tolist(),2016,1)
@@ -180,6 +148,7 @@ m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +55 Degrees")
 x,y = m(paral3_glon, paral3_glat, coords='mag')# coords='geo')
 m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
 """
+
 N = 10
 latdivs = 90./N
 londivs = 360./N
@@ -193,10 +162,28 @@ for n in range(N):
     x,y = m(paral_mlon, paral_mlat, coords='mag')
     m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
 
-# TODO: DIP ANGLE STUFF
+# SEVENTH: GET IGRF DATA FOR EACH EPHEMERIS POINT
 
+
+
+itype = 1 #Geodetic coordinates
+pyDate = dt(2006,2,23)
+date = utils.dateToDecYear(pyDate) # decimal year
+alt = 300. # altitude
+stp = 5.
+xlti, xltf, xltd = -90.,90.,stp # latitude start, stop, step
+xlni, xlnf, xlnd = -180.,180.,stp # longitude start, stop, step
+ifl = 0 # Main field
+# Call fortran subroutine
+lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+
+
+
+
+"""
 plt.xlabel('Geographic Longitude (degrees)')
 plt.ylabel('Geographic Latitude (degrees)')
 plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
 #plt.legend(loc='best')
 plt.show()
+"""
