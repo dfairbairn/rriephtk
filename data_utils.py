@@ -49,14 +49,14 @@ def initialize_data():
         dat_fname = sys.argv[1]
     else:
         print "No RRI file specified - going with default..."
-        dat_fname = "./data/RRI_20150402_032244_033241_lv1_v2.h5" # An RRI data file
+        dat_fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" # An RRI data file
     
     if not os.path.exists(dat_fname):
         print "No RRI file by that name. Exitting."
         exit()
 
     # Check to see if we're running on Maxwell, and if not, mount Maxwell SuperDARN data remotely
-    if subprocess.check_output(["hostname"]) == "maxwell":
+    if subprocess.check_output(["hostname"]) == "maxwell\n":
         print "Running on Maxwell: no remote mounting is necessary."
         data_path = "/data/" # If on Maxwell, don't do mounting
     else:
@@ -81,7 +81,8 @@ def get_rri_ephemeris(dat_fname):
     geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
     geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
     ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
-    return geog_longs,geog_lats,ephem_times
+    alts = f['CASSIOPE Ephemeris']['Altitude (km)'].value
+    return geog_longs,geog_lats,alts,ephem_times
 
 def get_hdf5(dat_fname):
     """

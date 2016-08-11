@@ -32,20 +32,20 @@ import math
 import sys
 
 # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
-geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
+geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
 index_inversion = 167 #for 18th
 
 #index_inversion = 178 #for 19th
-#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
+#geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
 
 #index_inversion = 213 #for 20th
-#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
+#geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
 
 #index_inversion = 205 #?? for 21st?
-#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
+#geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
 
 #index_inversion = 222 #for 22nd
-#geog_longs,geog_lats,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
+#geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
 
 # Location of Ottawa: I looked it up and am hard-coding it here.
 ottawa_long = -75.6972
