@@ -31,6 +31,24 @@ import math
 #import numpy as np
 import sys
 
+def get_bvec(glon, glat, alt, time):
+    """
+    This function uses the IGRF model in DavitPy to calculate the magnetic
+    field vector at a given near-Earth location at a particular time.
+
+    Currently, the function just takes geographic longitude and latitude. It 
+    shouldn't be difficult to extend its functionality to accept magnetic
+    coordinates as well thoug.
+
+    **PARAMS**
+    glon (Float): Geographic longitude of point
+    glat (Float): Geographic latitude of point
+    alt (Float): Altitude from Earth's surface in km
+    time (Datetime): Time of interest (magnetic North's location varies year-to-year)
+    """
+
+
+
 # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
 geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
 index_inversion = 167 #for 18th
@@ -165,14 +183,25 @@ for n in range(N):
 # SEVENTH: GET IGRF DATA FOR EACH EPHEMERIS POINT
 
 
-
+"""
 itype = 1 #Geodetic coordinates
 pyDate = times[0] # The first time we pull from the RRI file
 date = utils.dateToDecYear(pyDate) # decimal year
 alt = 300. # altitude #TODO: grab altitudes for series of satellite positions we care about.
-stp = 5. #
-xlti, xltf, xltd = -90.,90.,stp # latitude start, stop, step
-xlni, xlnf, xlnd = -180.,180.,stp # longitude start, stop, step
+stp = 1. #
+xlti, xltf, xltd = ottawa_lat - 1., ottawa_lat + 1.,stp # latitude start, stop, step
+xlni, xlnf, xlnd = ottawa_long - 1., ottawa_long + 1.,stp # longitude start, stop, step
+ifl = 0 # Main field
+# Call fortran subroutine
+lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+"""
+itype = 1 #Geodetic coordinates
+pyDate = times[0] # The first time we pull from the RRI file
+date = utils.dateToDecYear(pyDate) # decimal year
+alt = 300. # altitude #TODO: grab altitudes for series of satellite positions we care about.
+stp = 1. #
+xlti, xltf, xltd = ottawa_lat, ottawa_lat,stp # latitude start, stop, step
+xlni, xlnf, xlnd = ottawa_long, ottawa_long,stp # longitude start, stop, step
 ifl = 0 # Main field
 # Call fortran subroutine
 lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
