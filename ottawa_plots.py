@@ -246,4 +246,3 @@ lon = ottawa_long
 lat = ottawa_lat
 alt = 0.
 (bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
-
