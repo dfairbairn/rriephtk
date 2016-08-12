@@ -94,7 +94,7 @@ def get_nvec(lon, lat, alt):
     lat (float):
     alt (float): altitude of the point
 
-
+    *** MAY NOT BE USEFUL FOR THINGS IM DOING AS OF AUG 11 ***
     """
     latrad = np.deg2rad(lat)
     lonrad = np.deg2rad(lon)
@@ -132,6 +132,26 @@ def get_bvec(glon, glat, altitude, time):
     # Call fortran subroutine
     lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
     return (bx,by,bz)
+
+def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
+    """
+    This function takes the ephemeris data as arguments and using the Ottawa
+    NRCAN transmitter, compares the k (line of sight) vector and the IGRF B 
+    field vector to determine the relative angle between the propagating radio
+    wave and the B-field in the ionospheric plasma.
+
+    The purpose of this is to get an idea of which mode the radio wave is 
+    propagating under (and if it's undergoing Faraday rotation, etc.
+
+    *** PARAMS ***
+    ephem_glongs (np.array of floats): ground-track geographic longitude
+    ephem_glats (np.array of floats): ground-track geographic latitude
+    ephem_alts (np.array of floats): altitude of CASSIOPE 
+    ephem_times (np.array of floats): in truncated JD (MET), seconds since era
+
+    
+    """
+    #for i in range(
 
 def plot_ottawa_ephem(date_string):
     """
@@ -307,3 +327,4 @@ lon = ottawa_long
 lat = ottawa_lat
 alt = 0.
 (bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
+
