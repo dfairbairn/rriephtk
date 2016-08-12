@@ -33,14 +33,75 @@ import sys
 def get_ottawa_kvec(glon, glat, altitude, time):
     """
     This function takes a satellite ephemeris point as input, calculating
-    the straight-line k-vector from the Ottawa-based transmitter.
+    the straight-line k-vector from the Ottawa-based transmitter in terms of 
+    North (x), East (y), Down (z) components.
     """
     # The specific coordinates of the NRCAN geomagnetic    
     ottawa_lon = -75.552 
     ottawa_lat = 45.403
 
-    kx,ky,kz = (0.,0.,0.)
+    # In spherical coordinates, subtracting vectors doesn't get us the path
+    # from one point to another along the surface. To accomplish that, we use
+    # bearings and elevation angles.
+    
+    init_bearing,final_bearing = get_bearing(ottawa_lon, ottawa_lat, glon, glat)
+    elev_angle = get_elevation_angle(ottawa_lon, ottawa_lat, 0., glon, glat, altitude)
+
+    # for calculation of vector components, we need theta (the bearing in the
+    # N-E plane) at CASSIOPE, and phi, the angle-from-down (toward the N-E plane)
+    theta = final_bearing
+    phi = 90. + elev_angle
+    kx = np.sin(np.deg2rad(phi))*np.cos(np.deg2rad(theta))
+    ky = np.sin(np.deg2rad(phi))*np.sin(np.deg2rad(theta))
+    kz = np.cos(np.deg2rad(theta)) 
     return (kx,ky,kz)
+
+def get_bearing(lon1, lat1, lon2, lat2):
+    """
+    Gives the bearing clockwise from north in degrees from point 1 to point2,
+    at point 1 (init_bearing) and at point 2 (final_bearing)
+    """
+    atan2_argx = np.sin(np.deg2rad(lon2 - lon1))*np.cos(np.deg2rad(lat2))
+    atan2_argy1 = np.cos(np.deg2rad(lat1))*np.sin(np.deg2rad(lat2))
+    atan2_argy2 = np.sin(np.deg2rad(lat1))*np.cos(np.deg2rad(lat2))*np.cos(np.deg2rad(lon2 - lon1))
+    init_bearing = np.rad2deg(np.arctan2(atan2_argx, atan2_argy1 - atan2_argy2))
+
+    # The FINAL bearing is just the bearing from final point to the initial 
+    # point, reversed by adding 180 modulo 360
+    atan2_argx = np.sin(np.deg2rad(lon1 - lon2))*np.cos(np.deg2rad(lat1))
+    atan2_argy1 = np.cos(np.deg2rad(lat2))*np.sin(np.deg2rad(lat1))
+    atan2_argy2 = np.sin(np.deg2rad(lat2))*np.cos(np.deg2rad(lat1))*np.cos(np.deg2rad(lon1 - lon2))
+    rev_bearing = np.rad2deg(np.arctan2(atan2_argx, atan2_argy1 - atan2_argy2))
+    final_bearing = (rev_bearing + 180.) % 360.
+    return init_bearing,final_bearing
+
+def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
+    """
+    
+    """
+    arcdist = haversine(lon1, lat1, lon2, lat2)
+    delta_alt = alt2 - alt1
+    elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist))
+    return elev_angle
+
+def get_nvec(lon, lat, alt):
+    """
+    This function calculates and returns an n-vector as described at the 
+    website: http://www.movable-type.co.uk/scripts/latlong-vectors.html
+
+    **PARAMS*
+    lon (float): 
+    lat (float):
+    alt (float): altitude of the point
+
+
+    """
+    latrad = np.deg2rad(lat)
+    lonrad = np.deg2rad(lon)
+    vx = np.cos(latrad)*np.cos(lonrad)
+    vy = np.cos(latrad)*np.sin(lonrad)
+    vz = np.sin(latrad)
+    return vx,vy,vz
 
 def get_bvec(glon, glat, altitude, time):
     """
