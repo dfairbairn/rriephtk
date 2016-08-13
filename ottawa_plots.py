@@ -30,6 +30,8 @@ import math
 #import numpy as np
 import sys
 
+OTTAWA_TX_LON = -75.552
+OTTAWA_TX_LAT = 45.403
 def get_ottawa_kvec(glon, glat, altitude, time):
     """
     This function takes a satellite ephemeris point as input, calculating
@@ -37,15 +39,15 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     North (x), East (y), Down (z) components.
     """
     # The specific coordinates of the NRCAN geomagnetic    
-    ottawa_lon = -75.552 
-    ottawa_lat = 45.403
+    OTTAWA_TX_LON = -75.552 
+    OTTAWA_TX_LAT = 45.403
 
     # In spherical coordinates, subtracting vectors doesn't get us the path
     # from one point to another along the surface. To accomplish that, we use
     # bearings and elevation angles.
     
-    init_bearing,final_bearing = get_bearing(ottawa_lon, ottawa_lat, glon, glat)
-    elev_angle = get_elevation_angle(ottawa_lon, ottawa_lat, 0., glon, glat, altitude)
+    init_bearing,final_bearing = get_bearing(OTTAWA_TX_LON, OTTAWA_TX_LAT, glon, glat)
+    elev_angle = get_elevation_angle(OTTAWA_TX_LON, OTTAWA_TX_LAT, 0., glon, glat, altitude)
 
     # for calculation of vector components, we need theta (the bearing in the
     # N-E plane) at CASSIOPE, and phi, the angle-from-down (toward the N-E plane)
@@ -54,7 +56,7 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     kx = np.sin(np.deg2rad(phi))*np.cos(np.deg2rad(theta))
     ky = np.sin(np.deg2rad(phi))*np.sin(np.deg2rad(theta))
     kz = np.cos(np.deg2rad(theta)) 
-    return (kx,ky,kz)
+    return np.array((kx,ky,kz))
 
 def get_bearing(lon1, lat1, lon2, lat2):
     """
@@ -131,7 +133,7 @@ def get_bvec(glon, glat, altitude, time):
     ifl = 0 # Main field
     # Call fortran subroutine
     lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
-    return (bx,by,bz)
+    return np.array((bx[0],by[0],bz[0]))
 
 def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
     """
@@ -141,7 +143,7 @@ def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
     wave and the B-field in the ionospheric plasma.
 
     The purpose of this is to get an idea of which mode the radio wave is 
-    propagating under (and if it's undergoing Faraday rotation, etc.
+    propagating under (and if it's undergoing Faraday rotation, etc.)
 
     *** PARAMS ***
     ephem_glongs (np.array of floats): ground-track geographic longitude
@@ -151,7 +153,101 @@ def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
 
     
     """
-    #for i in range(
+    times = ephems_to_datetime(ephem_times)
+    angles = []
+    bvecs = []
+    kvecs = []
+    for i in range(ephem_glongs.__len__()):
+        lon = ephem_glongs[i]
+        lat = ephem_glats[i]
+        alt = ephem_alts[i]
+        time = times[i]
+        bvec = get_bvec(lon,lat,alt,time)
+        kvec = get_ottawa_kvec(lon,lat,alt,time)
+        #print "B vector: " + str(bvec)
+        #print "K vector: " + str(kvec)
+        # Take the dot product, divide out the magnitude of the vectors
+        prod = np.dot(kvec,bvec)/(np.linalg.norm(bvec)*np.linalg.norm(kvec))
+        angle = np.rad2deg(np.arccos(prod)) 
+        angles.append(angle)
+        bvecs.append(bvec)
+        kvecs.append(kvec) 
+    return bvecs,kvecs,angles
+
+def get_closest_ottawa_approach(glons, glats):
+    """
+    Uses a haversine formula-based distance calculation to find the closest 
+    approach of a set of points describing a ground-track.
+
+    *** PARAMS *** 
+    glons (np.array of floats): longitudes of ground-track points
+    glats (np.array of floats): latitudes of ground-track points
+
+    ** RETURNS **
+    indx_shortest (integer): index of the lat/lon pair where the ottawa transmitter is closest
+    dist_shortest (float): the actual closest distance
+    """
+    #TODO: Note: the 'closest distance' doesn't account for altitude! Do this?
+
+    # *** FINDING THE CLOSEST APPROACH ***
+    # Using the Haversine formula (in a function in script_utils.py), the closest
+    # approach is determined by brute force.
+    dists = []
+    longdists = []
+    latdists = []
+    dist_shortest = sys.maxint #Initially set this very high
+    for i in range(np.size(glons)):
+        dist = haversine(glons[i], glats[i], OTTAWA_TX_LON, OTTAWA_TX_LAT)
+        # Initially I took a quick and dirty approach to find the point of smallest
+        # Euclidean distance in terms of latitudes and longitudes.
+        #longdist = abs(geog_longs[i] - OTTAWA_TX_LON) # difference of longitudes
+        #latdist = abs(geog_lats[i] - OTTAWA_TX_LAT) # difference of latitudes
+        #dist = np.sqrt(longdist*longdist + latdist*latdist)  
+        if dist < dist_shortest:
+            dist_shortest = dist
+            indx_shortest = i
+    return indx_shortest, dist_shortest
+
+def get_ottawa_data(date_string):
+    """
+    Right now, this just returns the ephemeris data from CASSIOPE on this date,
+    as well as a hardcoded-by-inspection index/second number that I determined, 
+    but could be extended to do analytically in the future. 
+   
+    *** PARAMS ***
+    date_string (string): a string of the form "20160418" to denote april 18th of 2016 
+
+    *** RETURNS ***
+    glons
+    glats
+    alts
+    ephemtimes
+    index_reversal (integer): 
+    """
+    if isinstance(date_string, type(None)): date_string="20160418"
+
+    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
+    if "20160418"==date_string:
+        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
+        index_reversal = 167 #for 18th
+    elif "20160419"==date_string:
+        index_reversal = 178 #for 19th
+        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
+    elif "20160420"==date_string:
+        index_reversal = 213 #for 20th
+        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
+    elif "20160421"==date_string:
+        index_reversal = 205 #?? for 21st?
+        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
+    elif "20160422"==date_string:
+        index_reversal = 222 #for 22nd
+        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
+    else:
+        print "Invalid input date."
+        return None    
+    return geog_longs,geog_lats,alts,ephemtimes,index_reversal
+   
+
 
 def plot_ottawa_ephem(date_string):
     """
@@ -161,67 +257,31 @@ def plot_ottawa_ephem(date_string):
     Note that the transmitter is a Barker & Williamson Model 110.
 
     **PARAMS**
+    geog_longs
+    geog_lats
+    alts
+    ephemtimes
     date_string (String): String in the format of "20160418"
 
     """
-    if isinstance(date_string, NoneType): date_string="20160418"
+    # TODO: fixup this documentation
+    if isinstance(date_string, type(None)): date_string="20160418"
        
-    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
-    if "20160418"==date_string:
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
-        index_inversion = 167 #for 18th
-    elif "20160419"==date_string:
-        index_inversion = 178 #for 19th
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
-    elif "20160420"==date_string:
-        index_inversion = 213 #for 20th
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
-    elif "20160421"==date_string:
-        index_inversion = 205 #?? for 21st?
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
-    elif "20160422"==date_string:
-        index_inversion = 222 #for 22nd
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
-    else:
-        print "Invalid input date."
-        return None    
+    geog_longs,geog_lats,alts,ephemtimes,index_reversal = get_ottawa_data(date_string)
 
-    # Location of Ottawa: I looked it up and am hard-coding it here.
-    ottawa_long = -75.552
-    ottawa_lat = 45.403 
+    # Location of Ottawa: I looked it up and hard-coded it at the top
     times = ephems_to_datetime(ephemtimes)
 
-    # Make all longitudes positive?
-    #ottawa_long = (ottawa_long+360.)%360.0
-    #geog_longs = (geog_longs+360.)%360.0
-
-    # *** FINDING THE CLOSEST APPROACH ***
-    # Using the Haversine formula (in a function in script_utils.py), the closest
-    # approach is determined by brute force.
-    dists = []
-    longdists = []
-    latdists = []
-    shortest_dist = sys.maxint #Initially set this very high
-    for i in range(np.size(geog_longs)):
-        dist = haversine(geog_longs[i], geog_lats[i], ottawa_long, ottawa_lat)
-        # Initially I took a quick and dirty approach to find the point of smallest
-        # Euclidean distance in terms of latitudes and longitudes.
-        #longdist = abs(geog_longs[i] - ottawa_long) # difference of longitudes
-        #latdist = abs(geog_lats[i] - ottawa_lat) # difference of latitudes
-        #dist = np.sqrt(longdist*longdist + latdist*latdist)  
-        if dist < shortest_dist:
-            shortest_dist = dist
-            shortest = i
-
-    appr_time = times[shortest]
+    indx_shortest, dist_shortest = get_closest_ottawa_approach(geog_longs, geog_lats)
+    appr_time = times[indx_shortest]
     
     # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
     # in an array, was being rejected by the mapObj() function below. So I convert 
     # these numbers to floats explicitly here.
-    shortest_ephem_long = float(geog_longs[shortest])
-    shortest_ephem_lat = float(geog_lats[shortest])
-    inversion_ephem_long = float(geog_longs[index_inversion])
-    inversion_ephem_lat = float(geog_lats[index_inversion])
+    shortest_ephem_long = float(geog_longs[indx_shortest])
+    shortest_ephem_lat = float(geog_lats[indx_shortest])
+    inversion_ephem_long = float(geog_longs[index_reversal])
+    inversion_ephem_lat = float(geog_lats[index_reversal])
     
     # A different font for the legend etc. might be nice
     #fig = plt.figure()
@@ -229,7 +289,7 @@ def plot_ottawa_ephem(date_string):
     m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=111e3*180, height=111e3*90, coords='geo',datetime=times[0])
     
     # FIRST: Plot the location of Ottawa
-    x,y = m(ottawa_long,ottawa_lat,coords='geo')
+    x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
     m.plot(x,y,'ro',label="Ottawa")
     
     # SECOND: Plot the satellite ground-track.
@@ -241,7 +301,7 @@ def plot_ottawa_ephem(date_string):
     m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time)))
     
     # FOURTH: Plot the line from Ottawa to the nearest approach of the satellite.
-    x,y = m([shortest_ephem_long, ottawa_long], [shortest_ephem_lat, ottawa_lat], coords='geo')
+    x,y = m([shortest_ephem_long, OTTAWA_TX_LON], [shortest_ephem_lat, OTTAWA_TX_LAT], coords='geo')
     m.plot(x,y,'g')
     
     # FIFTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
@@ -307,8 +367,8 @@ def plot_ottawa_ephem(date_string):
     date = utils.dateToDecYear(pyDate) # decimal year
     alt = 300. # altitude #TODO: grab altitudes for series of satellite positions we care about.
     stp = 1. #
-    xlti, xltf, xltd = ottawa_lat, ottawa_lat,stp # latitude start, stop, step
-    xlni, xlnf, xlnd = ottawa_long, ottawa_long,stp # longitude start, stop, step
+    xlti, xltf, xltd = OTTAWA_TX_LAT, OTTAWA_TX_LAT,stp # latitude start, stop, step
+    xlni, xlnf, xlnd = OTTAWA_TX_LON, OTTAWA_TX_LON,stp # longitude start, stop, step
     ifl = 0 # Main field
     # Call fortran subroutine
     lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
@@ -321,10 +381,22 @@ def plot_ottawa_ephem(date_string):
     plt.show()
 
 # -----------------------------------------------------------------------------
-ottawa_long = -75.552
-ottawa_lat = 45.403
-lon = ottawa_long
-lat = ottawa_lat
+OTTAWA_TX_LON = -75.552
+OTTAWA_TX_LAT = 45.403
+lon = OTTAWA_TX_LON
+lat = OTTAWA_TX_LAT
 alt = 0.
-(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
+#(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
 
+date_string = "20160418"
+datpath,datname = initialize_data()
+lons,lats,alts,times,index_reversal = get_ottawa_data(date_string)
+bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,times)
+indx_closest, dist_closest = get_closest_ottawa_approach(lons,lats)
+plt.plot(angles,label="Angle between B and K")
+plt.plot((index_reversal)*np.ones(100),range(100),'y',label="Time/Location of Faraday Rotation Reversal")
+plt.plot((indx_closest)*np.ones(100),range(100),'g',label="Approximate Location of closest approach")
+plt.title("Relative angle of B vector vs. K vector for CASSIOPE ephemeris on " + str(date_string))
+plt.xlabel('Time elapsed during pass (seconds)')
+plt.legend()
+plt.show()

@@ -197,7 +197,7 @@ def determine_shift_offset(lst_a, lst_b):
     # The first one we try should be no shift whatsoever, and if there's 100% 
     # overlap, don't bother trying anything else (???).
     #for i in range(lst_a_len):
-    best_overlap = evaluate_difference(a,b)
+    best_overlap = evaluate_difference(lst_a,lst_b)
     best_overlap_index = 0
     if best_overlap == 1.0:
         # Optimal overlap already
@@ -205,6 +205,8 @@ def determine_shift_offset(lst_a, lst_b):
         return best_overlap_index, confidence
     #TODO: Should we collect several  ?
 
+    overlap_scores = []
+    overlap_shifts = []
     lst_b_len = lst_b.__len__()
     lst_b_fwd = lst_b_bck = lst_b
     for i in range(lst_a_len):
@@ -212,14 +214,23 @@ def determine_shift_offset(lst_a, lst_b):
         overlap = evaluate_difference(lst_a, lst_b_fwd)
         if overlap > best_overlap:
             best_overlap = overlap
-            best_overlap_index = i # TODO: do I need to negate this?
+            # access indices start at 0, so subtract 1 to describe extent of shift
+            best_overlap_index = -i - 1
+        overlap_scores.append(overlap)
+        overlap_shifts.append(-i-1)
 
         lst_b_bck = [lst_b_bck[-1]] + lst_b_bck[0:-1]        
         overlap = evaluate_difference(lst_a, lst_b_bck)
         if overlap > best_overlap:
             best_overlap = overlap
-            best_overlap_index = i # TODO: ^^ditto answer this question
-    return -1, 0 #TODO: Confidence/quality of answer???
+            # access indices start at 0, so subtract 1 to describe extent of shift
+            best_overlap_index = i + 1
+        overlap_scores.append(overlap)
+        overlap_shifts.append(i+1)
+    print overlap_scores
+    print overlap_shifts
+    return best_overlap_index, 0.5  
+    #TODO: Confidence/quality of answer???
 
 def evaluate_difference(lst_a, lst_b):
     """
@@ -246,3 +257,11 @@ if __name__ == "__main__":
     data_path,dat_fname = initialize_data()
     file_errl = open_errlog(data_path, 'sas', dt.datetime(2014,7,8))
     file_tstamps = open_tstamps(data_path, dt.datetime(2014,7,8))
+    lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
+    listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
+    print "List A: " + str(lista)
+    print "List B: " + str(listb)
+    score = evaluate_difference(lista,listb)
+    print "Difference evaluation: " + str(score)
+    shift = determine_shift_offset(lista,listb)
+    
