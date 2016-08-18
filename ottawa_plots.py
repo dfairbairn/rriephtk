@@ -203,10 +203,11 @@ def get_closest_ottawa_approach(glons, glats):
         #longdist = abs(geog_longs[i] - OTTAWA_TX_LON) # difference of longitudes
         #latdist = abs(geog_lats[i] - OTTAWA_TX_LAT) # difference of latitudes
         #dist = np.sqrt(longdist*longdist + latdist*latdist)  
+        dists.append(dist)
         if dist < dist_shortest:
             dist_shortest = dist
             indx_shortest = i
-    return indx_shortest, dist_shortest
+    return indx_shortest, dists 
 
 def get_ottawa_data(date_string):
     """
@@ -247,8 +248,48 @@ def get_ottawa_data(date_string):
         return None    
     return geog_longs,geog_lats,alts,ephemtimes,index_reversal
    
+def get_ottawa_data_full(date_string):
+    """
+    This, like the above (non-'full') function, mostly wraps the process of
+    acquiring ephemeris data while also grabbing David's inspection-determined
+    Faraday rotation reversal index.
 
+    *** PARAMS ***
+    date_string (string): a string of the form "20160418" to denote April 18th of 2016
 
+    *** RETURNS ***
+    glons
+    glats
+    alts
+    ephemtimes
+    mlons
+    mlats
+    
+
+    """
+    if isinstance(date_string, type(None)): date_string="20160418"
+
+    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
+    if "20160418"==date_string:
+        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
+        index_reversal = 167 #for 18th
+    elif "20160419"==date_string:
+        index_reversal = 178 #for 19th
+        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
+    elif "20160420"==date_string:
+        index_reversal = 213 #for 20th
+        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
+    elif "20160421"==date_string:
+        index_reversal = 205 #?? for 21st?
+        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
+    elif "20160422"==date_string:
+        index_reversal = 222 #for 22nd
+        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
+    else:
+        print "Invalid input date."
+        return None    
+    return glons,glats,alts,etimes,mlons,mlats,mlts,index_reversal
+ 
 def plot_ottawa_ephem(date_string):
     """
     Put the plotting procedure for looking at satellite ephemeris vs. Ottawa
@@ -263,16 +304,20 @@ def plot_ottawa_ephem(date_string):
     ephemtimes
     date_string (String): String in the format of "20160418"
 
+    *** RETURNS ***
+    - (Just plots)
+
     """
     # TODO: fixup this documentation
     if isinstance(date_string, type(None)): date_string="20160418"
        
     geog_longs,geog_lats,alts,ephemtimes,index_reversal = get_ottawa_data(date_string)
+    #glons,glats,alts,etimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
 
     # Location of Ottawa: I looked it up and hard-coded it at the top
     times = ephems_to_datetime(ephemtimes)
 
-    indx_shortest, dist_shortest = get_closest_ottawa_approach(geog_longs, geog_lats)
+    indx_shortest, dists = get_closest_ottawa_approach(geog_longs, geog_lats)
     appr_time = times[indx_shortest]
     
     # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
@@ -374,15 +419,91 @@ def plot_ottawa_ephem(date_string):
     lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
     """
 
+    my_xticks = []
+    num_ticks = 5
+    length = times.__len__()
+    tick_sep = length/(num_ticks - 1)
+    alt_t = alts[0]
+    lon_t = geog_longs[0]
+    lat_t = geog_lats[0]
+    dt_t  = times[0]
+    my_xticks.append("Altitude:    "+str(alt_t)+"\nLatitude:    "+str(lat_t)+"\nLongitude:    "+str(lon_t)+"\nTime (UTC):    "+str(dt_t))
+    for i in range(num_ticks-1):
+        alt_t = alts[tick_sep*(i+1)]
+        lon_t = geog_longs[tick_sep*(i+1)]
+        lat_t = geog_lats[tick_sep*(i+1)]
+        dt_t  = times[tick_sep*(i+1)]
+        my_xticks.append(str(alt_t)+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(dt_t))
+
     plt.xlabel('Geographic Longitude (degrees)')
     plt.ylabel('Geographic Latitude (degrees)')
     plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
     #plt.legend(loc='best')
     plt.show()
 
+def plot_kb_angle(date_string):
+    """
+    Take date_string as input, produce kb-angle as output 
+
+    *** PARAMS ***
+    date_string (string): string in form "20160418" to denote date for which to plot KB angle
+
+    *** RETURNS ***
+    - (just plots)
+
+    """
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
+    bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
+    indx_closest, dists = get_closest_ottawa_approach(lons,lats)
+    times = ephems_to_datetime(ephtimes)
+    
+    my_xticks = []
+    num_ticks = 5
+    length = times.__len__()
+    tick_sep = length/(num_ticks - 1)
+    dt_t  = times[0]
+    alt_t = alts[0]
+    lon_t = lons[0]
+    lat_t = lats[0]
+    mlon_t = mlons[0]
+    mlat_t = mlats[0]
+    mlt_t = mlts[0]
+    dist_t = dists[0]
+    my_xticks.append("Time (UTC):    "+str(dt_t.time())+"\nLatitude:    "+str(lat_t)+\
+        "\nLongitude:    "+str(lon_t)+"\nAltitude:    "+str(alt_t)+\
+    "\nMagnetic Local Time:    "+str(mlt_t)+"\nMagnetic Latitude:    "+str(mlat_t)+\
+    "\nMagnetic Longitude:    "+str(mlon_t)+"\nDistance (km):    "+str(dist_t))
+    for i in range(num_ticks-1):
+        alt_t = alts[tick_sep*(i+1)]
+        lon_t = lons[tick_sep*(i+1)]
+        lat_t = lats[tick_sep*(i+1)]
+        mlon_t = mlons[tick_sep*(i+1)]
+        mlat_t = mlats[tick_sep*(i+1)]
+        dt_t  = times[tick_sep*(i+1)]
+        mlt_t = mlts[tick_sep*(i+1)]
+        dist_t = dists[tick_sep*(i+1)]
+        my_xticks.append(str(dt_t.time())+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(alt_t)+\
+                "\n"+str(mlt_t)+"\n"+str(mlat_t)+"\n"+str(mlon_t)+"\n"+str(dist_t))
+    
+    indices = range(angles.__len__())
+    tick_indices = [i*tick_sep for i in range(num_ticks)]
+    
+    # Formatting adjustment so as to make room for the lengthy Ephemeris info
+    fig = plt.figure()
+    ax = plt.subplot(111,aspect = 'equal')
+    plt.subplots_adjust(bottom=0.2)
+
+    plt.plot(indices,angles,label="Angle between B and K")
+    plt.plot((index_reversal)*np.ones(100),1.5*np.array(range(100)),'y',label="Time/Location of Faraday Rotation Reversal")
+    plt.plot((indx_closest)*np.ones(100),1.5*np.array(range(100)),'g',label="Approximate Location of closest approach (" + str(dists[indx_closest]) + " km)")
+    plt.title("Relative angle of B vector vs. K vector for CASSIOPE ephemeris on " + str(date_string))
+    #plt.xlabel('Time elapsed during pass (seconds)')
+    plt.xticks(tick_indices, my_xticks)
+    plt.legend()
+    plt.show()
+
+   
 # -----------------------------------------------------------------------------
-OTTAWA_TX_LON = -75.552
-OTTAWA_TX_LAT = 45.403
 lon = OTTAWA_TX_LON
 lat = OTTAWA_TX_LAT
 alt = 0.
@@ -390,13 +511,4 @@ alt = 0.
 
 date_string = "20160418"
 datpath,datname = initialize_data()
-lons,lats,alts,times,index_reversal = get_ottawa_data(date_string)
-bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,times)
-indx_closest, dist_closest = get_closest_ottawa_approach(lons,lats)
-plt.plot(angles,label="Angle between B and K")
-plt.plot((index_reversal)*np.ones(100),range(100),'y',label="Time/Location of Faraday Rotation Reversal")
-plt.plot((indx_closest)*np.ones(100),range(100),'g',label="Approximate Location of closest approach")
-plt.title("Relative angle of B vector vs. K vector for CASSIOPE ephemeris on " + str(date_string))
-plt.xlabel('Time elapsed during pass (seconds)')
-plt.legend()
-plt.show()
+plot_kb_angle(date_string)

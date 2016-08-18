@@ -44,6 +44,7 @@ def initialize_data():
         print "Creating script directory 'data/remote/'."
 
     # Check which data file is to be used based on command-line arguments
+    # TODO: allow initialize_data() to take an RRI file arg, resolve conflict of command-line and functional args.
     import sys
     if sys.argv.__len__() == 2 and isinstance(sys.argv[1], str):
         dat_fname = sys.argv[1]
@@ -75,6 +76,15 @@ def initialize_data():
 def get_rri_ephemeris(dat_fname):
     """
     A function which returns the important ephemeris data, given an RRI h5 file.
+
+    *** PARAMS *** 
+    dat_fname (string): string giving the relative path and filename for the RRI h5 file
+
+    *** RETURNS ***
+    glons (float): Geographic Longitude (degrees)
+    glats (float): Geographic Latitude (degrees) 
+    alts (float): Altitude (mk)
+    etimes (float): Ephemeris MET/Truncated JD time (seconds since May 24 1968)
     """
     import h5py
     f = h5py.File(dat_fname)
@@ -83,6 +93,48 @@ def get_rri_ephemeris(dat_fname):
     ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
     alts = f['CASSIOPE Ephemeris']['Altitude (km)'].value
     return geog_longs,geog_lats,alts,ephem_times
+
+def get_rri_ephemeris_full(dat_fname):
+    """
+    A similar accessor function for RRI ephemeris from the relative path+name 
+    of an RRI file, but this time also grabbing the MLT, MLAT, MLONG data.
+
+    *** PARAMS ***
+    dat_fname (string): string giving the relative path and filename for the RRI h5 file
+
+    *** RETURNS ***
+    glons (float): Geographic Longitude (degrees)
+    glats (float): Geographic Latitude (degrees) 
+    alts (float): Altitude (mk)
+    etimes (float): Ephemeris MET/Truncated JD time (seconds since May 24 1968)
+    mlon (float): Magnetic longitude (degrees)
+    mlat (float): Magnetic latitude (degrees)
+    mlts (float): Magnetic Local Time (hr)
+    pitch (float): pitch of CASSIOPE (deg)
+    yaw (float): yaw of CASSIOPE (deg)
+    roll (float): roll of CASSIOPE (deg)
+    """
+    import h5py
+    from davitpy.models import aacgm
+    f = h5py.File(dat_fname)
+    geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
+    geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
+    ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
+    #TODO: Wasted processing when other functions call this but don't receive the converted times array
+    times = ephems_to_datetime(ephem_times) 
+    alts = f['CASSIOPE Ephemeris']['Altitude (km)'].value
+    mlat = f['CASSIOPE Ephemeris']['Magnetic Latitude (deg)'].value
+    mlon = f['CASSIOPE Ephemeris']['Magnetic Longitude (deg)'].value
+    mlts = []
+    for i in range(mlon.__len__()):
+        dt = times[i]
+        lone_mlon = mlon[i]
+        mlts.append(aacgm.mltFromYmdhms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,lone_mlon))
+    pitch = f['CASSIOPE Ephemeris']['Pitch (deg)'].value
+    yaw = f['CASSIOPE Ephemeris']['Yaw (deg)'].value
+    roll = f['CASSIOPE Ephemeris']['Roll (deg)'].value
+    return geog_longs,geog_lats,alts,ephem_times,mlon,mlat,mlts,pitch,yaw,roll
+
 
 def get_hdf5(dat_fname):
     """
@@ -264,4 +316,5 @@ if __name__ == "__main__":
     score = evaluate_difference(lista,listb)
     print "Difference evaluation: " + str(score)
     shift = determine_shift_offset(lista,listb)
-    
+   
+    #TODO: automated tests on some of the new data access functions??? 
