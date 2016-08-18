@@ -32,6 +32,7 @@ import sys
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403
+OTTAWA_TX_ELEV = 0.070 # 70m elevation in Ottawa - small compared to 300km satellite
 def get_ottawa_kvec(glon, glat, altitude, time):
     """
     This function takes a satellite ephemeris point as input, calculating
@@ -47,7 +48,7 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     # bearings and elevation angles.
     
     init_bearing,final_bearing = get_bearing(OTTAWA_TX_LON, OTTAWA_TX_LAT, glon, glat)
-    elev_angle = get_elevation_angle(OTTAWA_TX_LON, OTTAWA_TX_LAT, 0., glon, glat, altitude)
+    elev_angle = get_elevation_angle(OTTAWA_TX_LON, OTTAWA_TX_LAT, OTTAWA_TX_ELEV, glon, glat, altitude)
 
     # for calculation of vector components, we need theta (the bearing in the
     # N-E plane) at CASSIOPE, and phi, the angle-from-down (toward the N-E plane)
@@ -55,7 +56,7 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     phi = 90. + elev_angle
     kx = np.sin(np.deg2rad(phi))*np.cos(np.deg2rad(theta))
     ky = np.sin(np.deg2rad(phi))*np.sin(np.deg2rad(theta))
-    kz = np.cos(np.deg2rad(theta)) 
+    kz = np.cos(np.deg2rad(phi)) 
     return np.array((kx,ky,kz))
 
 def get_bearing(lon1, lat1, lon2, lat2):
@@ -85,25 +86,6 @@ def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
     delta_alt = alt2 - alt1
     elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist))
     return elev_angle
-
-def get_nvec(lon, lat, alt):
-    """
-    This function calculates and returns an n-vector as described at the 
-    website: http://www.movable-type.co.uk/scripts/latlong-vectors.html
-
-    **PARAMS*
-    lon (float): 
-    lat (float):
-    alt (float): altitude of the point
-
-    *** MAY NOT BE USEFUL FOR THINGS IM DOING AS OF AUG 11 ***
-    """
-    latrad = np.deg2rad(lat)
-    lonrad = np.deg2rad(lon)
-    vx = np.cos(latrad)*np.cos(lonrad)
-    vy = np.cos(latrad)*np.sin(lonrad)
-    vz = np.sin(latrad)
-    return vx,vy,vz
 
 def get_bvec(glon, glat, altitude, time):
     """
@@ -151,7 +133,10 @@ def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
     ephem_alts (np.array of floats): altitude of CASSIOPE 
     ephem_times (np.array of floats): in truncated JD (MET), seconds since era
 
-    
+    *** RETURNS ***
+    bvecs (np.array of float triplets): the IGRF B field at each ephemeris point
+    kvecs (np.array of float triplets): the tx-to-rx(sat) vector at each ephemeris point
+    angles (np.array of floats): the aspect angle (angle between respective bvecs and kvecs)
     """
     times = ephems_to_datetime(ephem_times)
     angles = []
@@ -174,14 +159,15 @@ def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
         kvecs.append(kvec) 
     return bvecs,kvecs,angles
 
-def get_closest_ottawa_approach(glons, glats):
+def get_closest_ottawa_approach(glons, glats, alts):
     """
     Uses a haversine formula-based distance calculation to find the closest 
     approach of a set of points describing a ground-track.
 
     *** PARAMS *** 
-    glons (np.array of floats): longitudes of ground-track points
-    glats (np.array of floats): latitudes of ground-track points
+    glons (np.array of floats): longitudes (deg) of ground-track points
+    glats (np.array of floats): latitudes (deg) of ground-track points
+    alts (np.array of floats): altitudes (in km)
 
     ** RETURNS **
     indx_shortest (integer): index of the lat/lon pair where the ottawa transmitter is closest
@@ -197,7 +183,9 @@ def get_closest_ottawa_approach(glons, glats):
     latdists = []
     dist_shortest = sys.maxint #Initially set this very high
     for i in range(np.size(glons)):
-        dist = haversine(glons[i], glats[i], OTTAWA_TX_LON, OTTAWA_TX_LAT)
+        dist_before_alt = haversine(glons[i], glats[i], OTTAWA_TX_LON, OTTAWA_TX_LAT)
+        delt_alt = alts[i] - OTTAWA_TX_ELEV
+        dist = np.linalg.norm((dist_before_alt,delt_alt))
         # Initially I took a quick and dirty approach to find the point of smallest
         # Euclidean distance in terms of latitudes and longitudes.
         #longdist = abs(geog_longs[i] - OTTAWA_TX_LON) # difference of longitudes
@@ -317,7 +305,7 @@ def plot_ottawa_ephem(date_string):
     # Location of Ottawa: I looked it up and hard-coded it at the top
     times = ephems_to_datetime(ephemtimes)
 
-    indx_shortest, dists = get_closest_ottawa_approach(geog_longs, geog_lats)
+    indx_shortest, dists = get_closest_ottawa_approach(geog_longs, geog_lats, alts)
     appr_time = times[indx_shortest]
     
     # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
@@ -454,7 +442,7 @@ def plot_kb_angle(date_string):
     """
     lons,lats,alts,ephtimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
     bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
-    indx_closest, dists = get_closest_ottawa_approach(lons,lats)
+    indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
     times = ephems_to_datetime(ephtimes)
     
     my_xticks = []
@@ -502,13 +490,74 @@ def plot_kb_angle(date_string):
     plt.legend()
     plt.show()
 
-   
+def plot_kvec(date_string):
+    """
+    A function for visualizing the k-vector's time evolution throughout a 
+    pass of EPOP.
+
+    *** PARAMS ***
+    date_string (string): string in form "20160418" to denote date for which to plot KB angle
+
+    *** RETURNS ***
+    - (just plots)
+
+    """
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
+    bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
+    indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
+    times = ephems_to_datetime(ephtimes)
+    
+    my_xticks = []
+    num_ticks = 5
+    length = times.__len__()
+    tick_sep = length/(num_ticks - 1)
+    dt_t  = times[0]
+    alt_t = alts[0]
+    lon_t = lons[0]
+    lat_t = lats[0]
+    mlon_t = mlons[0]
+    mlat_t = mlats[0]
+    mlt_t = mlts[0]
+    dist_t = dists[0]
+    my_xticks.append("Time (UTC):    "+str(dt_t.time())+"\nLatitude:    "+str(lat_t)+\
+        "\nLongitude:    "+str(lon_t)+"\nAltitude:    "+str(alt_t)+\
+    "\nMagnetic Local Time:    "+str(mlt_t)+"\nMagnetic Latitude:    "+str(mlat_t)+\
+    "\nMagnetic Longitude:    "+str(mlon_t)+"\nDistance (km):    "+str(dist_t))
+    for i in range(num_ticks-1):
+        alt_t = alts[tick_sep*(i+1)]
+        lon_t = lons[tick_sep*(i+1)]
+        lat_t = lats[tick_sep*(i+1)]
+        mlon_t = mlons[tick_sep*(i+1)]
+        mlat_t = mlats[tick_sep*(i+1)]
+        dt_t  = times[tick_sep*(i+1)]
+        mlt_t = mlts[tick_sep*(i+1)]
+        dist_t = dists[tick_sep*(i+1)]
+        my_xticks.append(str(dt_t.time())+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(alt_t)+\
+                "\n"+str(mlt_t)+"\n"+str(mlat_t)+"\n"+str(mlon_t)+"\n"+str(dist_t))
+    
+    indices = range(angles.__len__())
+    tick_indices = [i*tick_sep for i in range(num_ticks)]
+    
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    kx = [kv[0] for kv in kvecs]
+    ky = [kv[1] for kv in kvecs]
+    kz = [kv[2] for kv in kvecs]
+    Axes3D.plot(ax,kx,ky,zs=kz)
+    plt.xlabel("Kx direction (North)")
+    plt.ylabel("Ky direction (East)")
+    ax.set_zlabel("Kz direction (Down)")
+    plt.title("Change of K vector components during RRI pass on " + str(date_string))
+    plt.show() 
+ 
 # -----------------------------------------------------------------------------
 lon = OTTAWA_TX_LON
 lat = OTTAWA_TX_LAT
-alt = 0.
+alt = OTTAWA_TX_ELEV 
 #(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
 
 date_string = "20160418"
 datpath,datname = initialize_data()
 plot_kb_angle(date_string)
+#plot_kvec(date_string)
