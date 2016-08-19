@@ -481,9 +481,12 @@ def plot_kb_angle(date_string):
     ax = plt.subplot(111,aspect = 'equal')
     plt.subplots_adjust(bottom=0.2)
 
+    
     plt.plot(indices,angles,label="Angle between B and K")
-    plt.plot((index_reversal)*np.ones(100),1.5*np.array(range(100)),'y',label="Time/Location of Faraday Rotation Reversal")
-    plt.plot((indx_closest)*np.ones(100),1.5*np.array(range(100)),'g',label="Approximate Location of closest approach (" + str(dists[indx_closest]) + " km)")
+    delta = int(max(angles) - min(angles))
+    offs = min(angles)
+    plt.plot((index_reversal)*np.ones(delta),offs+np.array(range(delta)),'y',label="Time/Location of Faraday Rotation Reversal")
+    plt.plot((indx_closest)*np.ones(delta),offs+np.array(range(delta)),'g',label="Approximate Location of closest approach (" + str(dists[indx_closest]) + " km)")
     plt.title("Relative angle of B vector vs. K vector for CASSIOPE ephemeris on " + str(date_string))
     #plt.xlabel('Time elapsed during pass (seconds)')
     plt.xticks(tick_indices, my_xticks)
@@ -559,5 +562,5 @@ alt = OTTAWA_TX_ELEV
 
 date_string = "20160418"
 datpath,datname = initialize_data()
-plot_kb_angle(date_string)
-#plot_kvec(date_string)
+#plot_kb_angle(date_string)
+plot_kvec(date_string)
