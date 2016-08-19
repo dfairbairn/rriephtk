@@ -18,6 +18,49 @@ import logging
 
 from script_utils import * # For two_pad... easily replaceable functionality
 
+class FileLineWrapper(object):
+    """
+    A wrapper class for 'file' which tracks line numbers.
+
+    **ATTRIBUTES**
+        f (file object): the file object being wrapped.
+        line (int): tracks current line number
+        
+    ** 0 indexed lines in the file! ** 
+    """
+    def __init__(self, f):
+        """ Constructor for filewrapper object. """
+        self.f = f
+        self.line = 0
+        
+        # To allow skipping directly to lines
+        self.line_offs = []
+        offset = 0
+        self.f.seek(0)
+        for line in f:
+            #print line
+            self.line_offs.append(offset)
+            offset += line.__len__()
+        self.f.seek(0)
+    def close(self):
+        """ Closer function for filewrapper object. """
+        return self.f.close()
+    def readline(self):
+        """ 
+        This wrapper adds a lot of overhead with the if-statement, but has
+        nicer functionality by checking if the file is empty before increasing line#...
+        """
+        ln = self.f.readline()
+        if ln=="":
+            return ln
+        else:
+            self.line += 1
+            return self.f.readline()
+    def seekline(self,line_num):
+        """ Go to the nth line in the file. """ 
+        self.line = line_num
+        self.f.seek(self.line_offs[line_num])
+
 def initialize_data():
     """
     Used by RRI scripts to ensure the expected directory structure and data
@@ -135,15 +178,6 @@ def get_rri_ephemeris_full(dat_fname):
     roll = f['CASSIOPE Ephemeris']['Roll (deg)'].value
     return geog_longs,geog_lats,alts,ephem_times,mlon,mlat,mlts,pitch,yaw,roll
 
-
-def get_hdf5(dat_fname):
-    """
-    A function which mostly just wraps the use of the h5py library.
-    """
-    import h5py
-    f = h5py.File(dat_fname)
-    return f
-
 def open_errlog(data_path, rcode, date):
     """
     A function that can make opening errlog files a re-usable action?
@@ -189,13 +223,70 @@ def open_tstamps(data_path, date):
     file_stamps = bz2.BZ2File(data_path + "epop/" + fname)
     return FileLineWrapper(file_stamps)
 
-def get_stamp_pulses(file_stamps):
+def get_line_in_file(fl, srch_str):
+    """
+    A function taking a search string and a filelinewrapper obj as parameters, 
+    returning the line number of the first occurrence of the search string in the file.
+
+    *** PARAMS ***
+    fl (FileLineWrapper):   a FileLineWrapper object instance to e searched
+    srch_str (string):      the string of interest to find  
+
+    *** RETURNS ***
+    line_num (int): the line_num (of a FileLineWrapper object) where the search
+                    string first occurs
+    """
+    assert isinstance(fl, FileLineWrapper)
+    buffer_line = fl.line
+    fl.line = 0
+    found = False
+    
+    while 1:
+        line_num = fl.line
+        ln = fl.readline()
+        if ln=="":
+            print "End of file"
+            break
+        elif ln.find(srch_str) != -1:
+            found = True
+            break
+        if fl.line%1000 == 0:
+            print fl.line
+    fl.seekline(buffer_line)
+    if False==found:
+        return -1
+    return line_num
+
+def get_stamp_pulses(file_stamps,start_time,end_time):
+    """
+    A function which 
+
+    *** PARAMS ***
+    file_stamps (file object): timestamps file e.g. maxwell:/data/epop/20160418.0100.timestampdata.bz2
+    start_time (datetime obj): the start of the time period of interest for gathering pulse data
+    end_time (datetime obj): the end of the time period of interest 
+
+    *** RETURNS *** 
+    
+    
+    """
+    #TODO: GET CLOSER TO THE ACTUAL START < 10 s (rather than as with these params, up to 59 seconds away)
+    strt_str = two_pad(start_time.hour) + ":" + two_pad(start_time.minute)
+    end_str = two_pad(end_time.hour) + ":" + two_pad(end_time.minute)
+
+    startln = get_line_in_file(file_stamps,strt_str)
+    endln = get_line_in_file(file_stamps,end_str)
+
+    print "Start line for search string of " + strt_str + ": " + str(startln)
+    print "End line for search string of " + end_str + ": " + str(endln)
+
     # Reading Timestamp data, acquiring timing differences
     end = False
     pulses = []
+    file_stamps.seekline(startln)
     while end != True:
         ln = file_stamps.readline()
-        if ln == '':
+        if ln == '' or file_stamps.line > endln:
             end = True
         elif ln.find("SEC") != -1:
             time = float((ln.split(" = ")[1]).split("\n")[0])
@@ -279,8 +370,8 @@ def determine_shift_offset(lst_a, lst_b):
             best_overlap_index = i + 1
         overlap_scores.append(overlap)
         overlap_shifts.append(i+1)
-    print overlap_scores
-    print overlap_shifts
+    #print overlap_scores # Less output
+    #print overlap_shifts
     return best_overlap_index, 0.5  
     #TODO: Confidence/quality of answer???
 
@@ -307,14 +398,22 @@ TESTING
 """
 if __name__ == "__main__":
     data_path,dat_fname = initialize_data()
-    file_errl = open_errlog(data_path, 'sas', dt.datetime(2014,7,8))
-    file_tstamps = open_tstamps(data_path, dt.datetime(2014,7,8))
+    file_errl = open_errlog(data_path, 'sas', dt.datetime(2014,7,8,1,0,0))
+    file_stamps = open_tstamps(data_path, dt.datetime(2014,7,8,1,0,0))
     lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
     listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
-    print "List A: " + str(lista)
-    print "List B: " + str(listb)
+    #print "List A: " + str(lista)
+    #print "List B: " + str(listb)
     score = evaluate_difference(lista,listb)
-    print "Difference evaluation: " + str(score)
+    if round(score,3)!=0.571:
+        print "Difference evaluation: " + str(score)
     shift = determine_shift_offset(lista,listb)
-   
+
+    # TODO: test get_line_in_file()??
+    #print get_line_in_file(file_stamps, '01:15')
+    #print get_line_in_file(file_stamps, '01:15')
+
+    pulses = get_stamp_pulses(file_stamps, dt.datetime(2014,7,8,1,15,9), dt.datetime(2014,7,8,1,17,38)) 
+    
+ 
     #TODO: automated tests on some of the new data access functions??? 

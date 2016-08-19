@@ -94,7 +94,7 @@ def get_bvec(glon, glat, altitude, time):
 
     Currently, the function just takes geographic longitude and latitude. It 
     shouldn't be difficult to extend its functionality to accept magnetic
-    coordinates as well thoug.
+    coordinates as well though.
 
     **PARAMS**
     glon (Float): Geographic longitude of point
