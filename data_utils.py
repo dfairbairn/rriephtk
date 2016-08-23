@@ -51,11 +51,9 @@ class FileLineWrapper(object):
         nicer functionality by checking if the file is empty before increasing line#...
         """
         ln = self.f.readline()
-        if ln=="":
-            return ln
-        else:
+        if ln!="":
             self.line += 1
-            return self.f.readline()
+        return ln
     def seekline(self,line_num):
         """ Go to the nth line in the file. """ 
         self.line = line_num
@@ -250,8 +248,8 @@ def get_line_in_file(fl, srch_str):
         elif ln.find(srch_str) != -1:
             found = True
             break
-        if fl.line%1000 == 0:
-            print fl.line
+        #if fl.line%1000 == 0:
+        #    print fl.line
     fl.seekline(buffer_line)
     if False==found:
         return -1
@@ -267,7 +265,8 @@ def get_stamp_pulses(file_stamps,start_time,end_time):
     end_time (datetime obj): the end of the time period of interest 
 
     *** RETURNS *** 
-    
+    pulse_times (list of strings): the total timestamps (as a string) for each pulse
+    pulses (list of floats): the times (in seconds) at which a pulse goes out    
     
     """
     #TODO: GET CLOSER TO THE ACTUAL START < 10 s (rather than as with these params, up to 59 seconds away)
@@ -281,27 +280,124 @@ def get_stamp_pulses(file_stamps,start_time,end_time):
     print "End line for search string of " + end_str + ": " + str(endln)
 
     # Reading Timestamp data, acquiring timing differences
+
     end = False
+    pulse_times = []
     pulses = []
+    # Initialized hour/minute timestamp for edge cases where a pulse is read 
+    # in before it has a corresponding hr/min
+    hrtime = "--:--"
     file_stamps.seekline(startln)
     while end != True:
         ln = file_stamps.readline()
         if ln == '' or file_stamps.line > endln:
+            print "End of file or reached end of search range."
             end = True
+        elif ln.find("TIME") != -1:
+            hrtime = (ln.split(" = ")[1]).split(" ")[0]
         elif ln.find("SEC") != -1:
-            time = float((ln.split(" = ")[1]).split("\n")[0])
-            pulses.append(time)
-    return pulses
+            sectime = float((ln.split(" = ")[1]).split("\n")[0])
+            time = hrtime + ":" + str(sectime)
+            pulse_times.append(time)
+            pulses.append(sectime)
+    return (pulse_times, pulses)
 
-def get_diffs(pulses):
-    """ Returns a list of time differences between the pulse times given, corresponding 1 - for - 1 """
+def get_diffs(pulse_times, pulses):
+    """ 
+    Returns a list of time differences between the pulse times given, 
+    corresponding 1 - for - 1 
+
+    *** PARAMS ***
+    pulse_time (list of strings): list of strings containing the exact time of the pulse.
+    pulses (list of floats): list of floats of the exact time (sec) of the pulses.
+
+    *** RETURNS ***
+    diff_val ([] floats): time intervals between temporally adjacent pulses.
+    pulse_times ([] strings): timestamp of beginning of each time interval
+    """
+    
     diffs = []
     for i in range(pulses.__len__() - 1):
         p = pulses[i]
         p_nxt = pulses[i+1]
         diff = p_nxt-p
         diffs.append(p_nxt-p)
-    return diffs
+    return pulse_times,diffs
+
+def identify_sequences(pulse_times,diffs):
+    """
+    This function takes a list of time intervals between pulses (whose interval
+    begins at the corresponding time in pulse_times, and picks out which series
+    of intervals corresponds to a 7 or 8 pulse sequence.
+
+    *** PARAMS ***
+    diff_val ([] floats): time intervals between temporally adjacent pulses.
+    pulse_times ([] strings): timestamp of beginning of each time interval
+
+    *** RETURNS ***
+    total ([] strings): list of every feature in diffs (possibly deprecated)
+    sequence_times ([] strings): timestamp of beginning of each time interval
+    sequences ([] strings): 7 vs 8 for which sequence occurred
+
+    """
+    total = []
+    sequence_times = []
+    sequences = []
+    i = 0
+    # minutes_count separately tracks the number of minute-to-minute transitions
+    # that the sequence-identifier finds (which should hopefully match what's in pulse_times)
+    minutes_count = 0
+    while i < diffs.__len__():
+        d1 = diffs[i] 
+        t1 = pulse_times[i] 
+        # Implemented a hack to notice minute-to-minute transitions, note them in summary file
+        if d1 < 0: # This may screw up 7 or 8 pulse identification across transitions 
+            d1 = d1 + 60.0 
+            minutes_count = minutes_count + 1
+            total.append("Minute Transition: " + str(minutes_count))
+        if i < diffs.__len__() - 6:
+            d2 = diffs[i+1]
+            d3 = diffs[i+2]
+            d4 = diffs[i+3]
+            d5 = diffs[i+4]
+            d6 = diffs[i+5]
+            d7 = diffs[i+6]
+    
+            c1 = np.around(d1,decimals=4) == 0.0210
+            c2 = np.around(d2,decimals=4) == 0.012
+            c3 = np.around(d3,decimals=4) == 0.003
+            c4 = np.around(d4,decimals=4) == 0.0045
+            c5 = np.around(d5,decimals=4) == 0.006
+            c6 = np.around(d6,decimals=4) == 0.0165
+            c7 = np.around(d7,decimals=4) == 0.0015
+            
+            b1 = np.around(d1,decimals=4) == 0.0216
+            b2 = np.around(d2,decimals=4) == 0.0072
+            b3 = np.around(d3,decimals=4) == 0.0192
+            b4 = np.around(d4,decimals=4) == 0.0048
+            b5 = np.around(d5,decimals=4) == 0.0096
+            b6 = np.around(d6,decimals=4) == 0.0024
+    
+            if c1 and c2 and c3 and c4 and c5 and c6 and c7:
+                #print "8 Pulse Sequence"
+                total.append("8 Pulse Sequence")
+                sequence_times.append(t1)
+                sequences.append("8")
+                i = i+7
+            elif b1 and b2 and b3 and b4 and b5 and b6:
+                #print "7 pulse sequence"
+                total.append("7 Pulse Sequence")
+                sequence_times.append(t1)
+                sequences.append("7")
+                i = i+6
+            else:
+                total.append(str(d1))
+                i = i + 1
+        else:
+            #print d
+            total.append(str(d1))
+            i = i  + 1
+    return total,sequence_times,sequences
 
 def determine_offset(pulse_times_a, pulse_seqs_a, pulse_times_b, pulse_seqs_b):
     """
@@ -398,8 +494,14 @@ TESTING
 """
 if __name__ == "__main__":
     data_path,dat_fname = initialize_data()
-    file_errl = open_errlog(data_path, 'sas', dt.datetime(2014,7,8,1,0,0))
-    file_stamps = open_tstamps(data_path, dt.datetime(2014,7,8,1,0,0))
+
+    start = dt.datetime(2014,7,8,1,15,9)
+    end = dt.datetime(2014,7,8,1,17,30)
+    #start = dt.datetime(2014,7,8,1,0,0)
+    #end = dt.datetime(2014,7,8,1,1,2,0)
+
+    file_errl = open_errlog(data_path, 'sas', start)
+    file_stamps = open_tstamps(data_path,start)
     lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
     listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
     #print "List A: " + str(lista)
@@ -413,7 +515,7 @@ if __name__ == "__main__":
     #print get_line_in_file(file_stamps, '01:15')
     #print get_line_in_file(file_stamps, '01:15')
 
-    pulses = get_stamp_pulses(file_stamps, dt.datetime(2014,7,8,1,15,9), dt.datetime(2014,7,8,1,17,38)) 
-    
- 
+    pulse_times,pulses = get_stamp_pulses(file_stamps, start, end)
+    dtimes,diffs = get_diffs(pulse_times,pulses)
+    total,seqts,seqs = identify_sequences(dtimes,diffs) 
     #TODO: automated tests on some of the new data access functions??? 
