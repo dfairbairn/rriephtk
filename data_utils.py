@@ -271,6 +271,7 @@ def get_stamp_pulses(file_stamps,start_time,end_time):
     """
     #TODO: GET CLOSER TO THE ACTUAL START < 10 s (rather than as with these params, up to 59 seconds away)
     strt_str = two_pad(start_time.hour) + ":" + two_pad(start_time.minute)
+    #TODO: Find way to grab minute after the one of interest
     end_str = two_pad(end_time.hour) + ":" + two_pad(end_time.minute)
 
     startln = get_line_in_file(file_stamps,strt_str)
@@ -297,9 +298,57 @@ def get_stamp_pulses(file_stamps,start_time,end_time):
             hrtime = (ln.split(" = ")[1]).split(" ")[0]
         elif ln.find("SEC") != -1:
             sectime = float((ln.split(" = ")[1]).split("\n")[0])
-            time = hrtime + ":" + str(sectime)
+            if sectime < 10.0:
+                time = hrtime + ":0" + str(round(sectime,5))
+            else:
+                time = hrtime + ":" + str(round(sectime,5))
             pulse_times.append(time)
             pulses.append(sectime)
+    return (pulse_times, pulses)
+
+def get_errl_pulses(f_errl, start, end):
+    """
+    Function to grab the pulses from the errlog file for the desired time
+    interval as well as their general timestamps.
+
+
+    *** PARAMS ***
+    file_errl (FileLineWrapper obj): errl file e.g. maxwell:/data/sas_errlog/...
+    start (datetime obj): the start of the time period of interest for gathering pulse data
+    end (datetime obj): the end of the time period of interest 
+
+    *** RETURNS ***
+
+
+    """
+    start_str = two_pad(start.hour) + ":" + two_pad(start.minute) + ":"
+    end_str = two_pad(end.hour) + ":" + two_pad(end.minute) + ":"
+    #TODO: Find way to grab minute after the one of interest
+    #end_str = two_pad(end.hour) + ":" + two_pad(end.minute + 1) + ":"
+
+    ln_start = get_line_in_file(f_errl, start_str)
+    ln_end = get_line_in_file(f_errl, end_str)
+
+    print "Start line for search string of " + start_str + ": " + str(ln_start)
+    print "End line for search string of " + end_str + ": " + str(ln_end)
+
+    end = False
+    pulse_times = []
+    pulses = []
+
+    f_errl.seekline(ln_start)
+    while end != True:
+        ln = f_errl.readline()
+        if ln.find("Number of sequences") != -1:
+            #print "Found pulse sequence!"
+            pulse,numof = parse_pulses(ln)
+            ptime = parse_ptimes(ln)
+            for i in range(numof):
+                pulses.append(pulse)
+                pulse_times.append(ptime)
+        elif ln == '' or f_errl.line > ln_end:
+            print "End of file or reached end of search range."
+            end = True
     return (pulse_times, pulses)
 
 def get_diffs(pulse_times, pulses):
@@ -398,6 +447,31 @@ def identify_sequences(pulse_times,diffs):
             total.append(str(d1))
             i = i  + 1
     return total,sequence_times,sequences
+
+def parse_pulses(ln):
+    """ 
+    A little mini function for taking a line in an errlog file and grabbing the pulse number.
+    """
+    if ln.find("Number of sequences") == -1:
+        print "Line of text doesn't contain pulse information!"
+
+    rem = ln.split("Number of sequences")[1]
+    if rem.find("[") != -1:
+        # Then this file *does* specify pulse sequences as it should
+        pseq = (rem.split("[")[1]).split("]")[0]
+        numof = int((rem.split(": ")[1]).split("\n")[0])
+    else:
+        # Then this is an older errlog where the pseqs are all 8 pulse sequences
+        pseq = str(8)
+        numof = int((rem.split(": ")[1]).split("\n")[0])
+    return pseq,numof 
+
+def parse_ptimes(ln):
+    """
+    Mini function for getting the time (in a string) from a line of an errlog file.
+    """
+    timestring = ln.split(" ")[4]
+    return timestring
 
 def determine_offset(pulse_times_a, pulse_seqs_a, pulse_times_b, pulse_seqs_b):
     """
@@ -515,7 +589,10 @@ if __name__ == "__main__":
     #print get_line_in_file(file_stamps, '01:15')
     #print get_line_in_file(file_stamps, '01:15')
 
-    pulse_times,pulses = get_stamp_pulses(file_stamps, start, end)
-    dtimes,diffs = get_diffs(pulse_times,pulses)
-    total,seqts,seqs = identify_sequences(dtimes,diffs) 
+    stamp_ptimes,stamp_pulses = get_stamp_pulses(file_stamps, start, end)
+    stamp_dtimes,stamp_diffs = get_diffs(stamp_ptimes,stamp_pulses)
+    stamp_allpulses,stamp_seqtimes,stamp_pseqs = identify_sequences(stamp_dtimes,stamp_diffs) 
+
+    errl_seqtimes,errl_pseqs = get_errl_pulses(file_errl, start, end)    
+
     #TODO: automated tests on some of the new data access functions??? 
