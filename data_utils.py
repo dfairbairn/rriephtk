@@ -283,3 +283,4 @@ if __name__ == "__main__":
     #print get_line_in_file(file_stamps, '01:15')
 
     #TODO: automated tests on some of the new data access functions??? 
+    exit_rri()

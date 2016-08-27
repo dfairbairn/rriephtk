@@ -564,3 +564,4 @@ date_string = "20160418"
 datpath,datname = initialize_data()
 #plot_kb_angle(date_string)
 plot_kvec(date_string)
+

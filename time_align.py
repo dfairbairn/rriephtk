@@ -390,9 +390,7 @@ shift = determine_shift_offset(lista,listb)
 
 for i in range(70):
     print str(stamp_seqtimes[i]) + "\t" + str(stamp_pseqs[i]) + "\t" + str(errl_pseqs[i]) + "\t" + str(errl_seqtimes[i])
-
 print "\n\n"
-
 for i in range(70):
     print str(stamp_seqtimes[-1-i]) + "\t" + str(stamp_pseqs[-1-i]) + "\t" + str(errl_pseqs[-1-i]) + "\t" + str(errl_seqtimes[-1-i])
 
@@ -400,6 +398,7 @@ indx_del = 70
 chunks = int(errl_pseqs.__len__()/70.)
 
 y = visualize_list_difference(errl_pseqs, stamp_pseqs)
-
 # Unmount the Maxwell remote mount.
 #os.system("fusermount -uq ./data/remote/")
+
+exit_rri()
