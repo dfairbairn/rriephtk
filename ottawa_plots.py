@@ -159,6 +159,39 @@ def get_kb_ottawa_angle(ephem_glongs, ephem_glats, ephem_alts, ephem_times):
         kvecs.append(kvec) 
     return bvecs,kvecs,angles
 
+def get_ramdirs(glon, glat, altitude, time):
+    """
+    Computes the velocity components of the satellite based on its ephemeris.
+    
+
+    *** PARAMS ***
+    glon (np.array of floats): the longitudes of the satellite (deg) 
+    glat (np.array of floats): the latitudes of the satellite (deg)
+    altitude (np.array of floats): the altitudes of the satellite (deg)
+    time ( doesnt even matter right now ) : The times (currently unused)
+
+    *** RETURNS ***
+    v (list of floats): velocity vector components (in km/s)
+    dists (list of floats): full distances traveled in 1 sec in km
+
+    """
+    v = []
+    dists = [] 
+    for i in range(glon.__len__()-1):
+        lon1 = glon[i]
+        lon2 = glon[i+1]
+        lat1 = glat[i]
+        lat2 = glat[i+1]
+        alt1 = altitude[i]
+        alt2 = altitude[i+1]
+        latdist = haversine(lon1,lat1,lon1,lat2) # if lon1,lat1 -- lon2,lat2 is the hypotenuse, this is the vertical
+        londist = haversine(lon1,lat1,lon2,lat1) # and this is the horizontal
+        altdist = alt2 - alt1
+        dist = np.linalg.norm((latdist,londist,altdist))
+        v.append((latdist,londist,altdist))
+        dists.append(dist)
+    return v,dists
+
 def get_closest_ottawa_approach(glons, glats, alts):
     """
     Uses a haversine formula-based distance calculation to find the closest 
@@ -554,6 +587,57 @@ def plot_kvec(date_string):
     plt.title("Change of K vector components during RRI pass on " + str(date_string))
     plt.show() 
  
+def plot_ramdir(date_string):
+    """
+    
+    """
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(datname)
+    vs,dists = get_ramdirs(lons,lats,alts,ephtimes)   
+    indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
+    times = ephems_to_datetime(ephtimes)
+    
+    my_xticks = []
+    num_ticks = 5
+    length = times.__len__()
+    tick_sep = length/(num_ticks - 1)
+    dt_t  = times[0]
+    alt_t = alts[0]
+    lon_t = lons[0]
+    lat_t = lats[0]
+    mlon_t = mlons[0]
+    mlat_t = mlats[0]
+    mlt_t = mlts[0]
+    dist_t = dists[0]
+    my_xticks.append("Time (UTC):    "+str(dt_t.time())+"\nLatitude:    "+str(lat_t)+\
+        "\nLongitude:    "+str(lon_t)+"\nAltitude:    "+str(alt_t)+\
+    "\nMagnetic Local Time:    "+str(mlt_t)+"\nMagnetic Latitude:    "+str(mlat_t)+\
+    "\nMagnetic Longitude:    "+str(mlon_t)+"\nDistance (km):    "+str(dist_t))
+    for i in range(num_ticks-1):
+        alt_t = alts[tick_sep*(i+1)]
+        lon_t = lons[tick_sep*(i+1)]
+        lat_t = lats[tick_sep*(i+1)]
+        mlon_t = mlons[tick_sep*(i+1)]
+        mlat_t = mlats[tick_sep*(i+1)]
+        dt_t  = times[tick_sep*(i+1)]
+        mlt_t = mlts[tick_sep*(i+1)]
+        dist_t = dists[tick_sep*(i+1)]
+        my_xticks.append(str(dt_t.time())+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(alt_t)+\
+                "\n"+str(mlt_t)+"\n"+str(mlat_t)+"\n"+str(mlon_t)+"\n"+str(dist_t))
+ 
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    vx = [v[0] for v in vs]
+    vy = [v[1] for v in vs]
+    vz = [v[2] for v in vs]
+    Axes3D.plot(ax,vx,vy,zs=vz)
+    plt.xlabel("Vx direction (North)")
+    plt.ylabel("Vy direction (East)")
+    ax.set_zlabel("Kz direction (Up)")
+    plt.title("Change of V vector components during RRI pass on " + str(date_string))
+    plt.show() 
+ 
+    
 # -----------------------------------------------------------------------------
 lon = OTTAWA_TX_LON
 lat = OTTAWA_TX_LAT
@@ -563,5 +647,9 @@ alt = OTTAWA_TX_ELEV
 date_string = "20160418"
 datpath,datname = initialize_data()
 #plot_kb_angle(date_string)
-plot_kvec(date_string)
+#plot_kvec(date_string)
 
+lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(datname)
+vs,dists = get_ramdirs(lons,lats,alts,ephtimes)
+
+plot_ramdir("20160418")
