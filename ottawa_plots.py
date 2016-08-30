@@ -39,6 +39,8 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     the straight-line k-vector from the Ottawa-based transmitter in terms of 
     North (x), East (y), Down (z) components.
     """
+    #TODO: Parallelize/accept vector inputs
+
     # The specific coordinates of the NRCAN geomagnetic    
     OTTAWA_TX_LON = -75.552 
     OTTAWA_TX_LAT = 45.403
@@ -64,6 +66,7 @@ def get_bearing(lon1, lat1, lon2, lat2):
     Gives the bearing clockwise from north in degrees from point 1 to point2,
     at point 1 (init_bearing) and at point 2 (final_bearing)
     """
+    #TODO: Parallelize/accept vector inputs
     atan2_argx = np.sin(np.deg2rad(lon2 - lon1))*np.cos(np.deg2rad(lat2))
     atan2_argy1 = np.cos(np.deg2rad(lat1))*np.sin(np.deg2rad(lat2))
     atan2_argy2 = np.sin(np.deg2rad(lat1))*np.cos(np.deg2rad(lat2))*np.cos(np.deg2rad(lon2 - lon1))
@@ -232,85 +235,34 @@ def get_closest_ottawa_approach(glons, glats, alts):
 
 def get_ottawa_data(date_string):
     """
-    Right now, this just returns the ephemeris data from CASSIOPE on this date,
-    as well as a hardcoded-by-inspection index/second number that I determined, 
-    but could be extended to do analytically in the future. 
-   
-    *** PARAMS ***
-    date_string (string): a string of the form "20160418" to denote april 18th of 2016 
+    Function making it convenient in interactive mode or in scripts to select 
+    data (including the index/seconds into the pass at which the Faraday 
+    rotation reversal occurs).
 
-    *** RETURNS ***
-    glons
-    glats
-    alts
-    ephemtimes
-    index_reversal (integer): 
     """
     if isinstance(date_string, type(None)): date_string="20160418"
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
+        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
         index_reversal = 167 #for 18th
     elif "20160419"==date_string:
         index_reversal = 178 #for 19th
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
+        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
         index_reversal = 213 #for 20th
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
+        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
         index_reversal = 205 #?? for 21st?
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
+        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
         index_reversal = 222 #for 22nd
-        geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
+        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print "Invalid input date."
         return None    
-    return geog_longs,geog_lats,alts,ephemtimes,index_reversal
-   
-def get_ottawa_data_full(date_string):
-    """
-    This, like the above (non-'full') function, mostly wraps the process of
-    acquiring ephemeris data while also grabbing David's inspection-determined
-    Faraday rotation reversal index.
-
-    *** PARAMS ***
-    date_string (string): a string of the form "20160418" to denote April 18th of 2016
-
-    *** RETURNS ***
-    glons
-    glats
-    alts
-    ephemtimes
-    mlons
-    mlats
+    return fname,index_reversal
     
-
-    """
-    if isinstance(date_string, type(None)): date_string="20160418"
-
-    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
-    if "20160418"==date_string:
-        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160418_222759_223156_lv1_v2.h5") #18th
-        index_reversal = 167 #for 18th
-    elif "20160419"==date_string:
-        index_reversal = 178 #for 19th
-        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160419_220939_221336_lv1_v2.h5") #19th
-    elif "20160420"==date_string:
-        index_reversal = 213 #for 20th
-        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160420_215117_215514_lv1_v2.h5") #20th
-    elif "20160421"==date_string:
-        index_reversal = 205 #?? for 21st?
-        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160421_213255_213652_lv1_v2.h5") #21st
-    elif "20160422"==date_string:
-        index_reversal = 222 #for 22nd
-        glons,glats,alts,etimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full("./data/RRI_20160422_211435_211832_lv1_v2.h5") #22nd
-    else:
-        print "Invalid input date."
-        return None    
-    return glons,glats,alts,etimes,mlons,mlats,mlts,index_reversal
- 
 def plot_ottawa_ephem(date_string):
     """
     Put the plotting procedure for looking at satellite ephemeris vs. Ottawa
@@ -332,8 +284,8 @@ def plot_ottawa_ephem(date_string):
     # TODO: fixup this documentation
     if isinstance(date_string, type(None)): date_string="20160418"
        
-    geog_longs,geog_lats,alts,ephemtimes,index_reversal = get_ottawa_data(date_string)
-    #glons,glats,alts,etimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
+    fname,index_reversal = get_ottawa_data(date_string)
+    geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris(fname)
 
     # Location of Ottawa: I looked it up and hard-coded it at the top
     times = ephems_to_datetime(ephemtimes)
@@ -473,7 +425,8 @@ def plot_kb_angle(date_string):
     - (just plots)
 
     """
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
     bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
     indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
     times = ephems_to_datetime(ephtimes)
@@ -538,7 +491,8 @@ def plot_kvec(date_string):
     - (just plots)
 
     """
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,index_reversal = get_ottawa_data_full(date_string)
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
     bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
     indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
     times = ephems_to_datetime(ephtimes)
@@ -596,6 +550,100 @@ def plot_ramdir(date_string):
     indx_closest, dists = get_closest_ottawa_approach(lons,lats,alts)
     times = ephems_to_datetime(ephtimes)
     
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    vx = [v[0] for v in vs]
+    vy = [v[1] for v in vs]
+    vz = [v[2] for v in vs]
+    Axes3D.plot(ax,vx,vy,zs=vz)
+    plt.xlabel("Vx direction - North (km/s)")
+    plt.ylabel("Vy direction - East (km/s)")
+    ax.set_zlabel("-Vz direction - Up (km/s)")
+    plt.title("Change of V vector components during RRI pass on " + str(date_string))
+    plt.show() 
+
+def plot_kdip_angle(date_string):
+    """
+    
+    """
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
+    dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
+    #plot_kb_angle(date_string)
+    #plot_kvec(date_string)
+    #plot_ramdir("20160418")
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    plt.subplots_adjust(bottom=0.2)
+    plt.plot(kdip_angles)
+    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    plt.ylabel('Angle (degrees)')
+    plt.title('Plot of angle between K_los from Ottawa transmitter and Dipole direction of RRI for ' + date_string)
+    plt.show()
+    
+
+def rotation_matrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    theta = np.asarray(theta)
+    axis = axis/math.sqrt(np.dot(axis, axis))
+    a = math.cos(theta/2.0)
+    b, c, d = -axis*math.sin(theta/2.0)
+    aa, bb, cc, dd = a*a, b*b, c*c, d*d
+    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
+    return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
+                     [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
+                     [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]]) 
+
+def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
+    """
+    Call this function to retrieve a list of the direction of the RRI dipole plane 
+    in N-E-down coordinates for the first n-1 ephemeris points provided, as well
+    as the relative angle between the K_los vector from the Ottawa transmitter
+    and the direction of the RRI dipole plane.
+
+    """
+    vs,dists = get_ramdirs(lons,lats,alts,ephtimes)
+    
+    kvecs = []
+    for i in range(lons.__len__()):
+        kvec = get_ottawa_kvec(lons[i],lats[i],alts[i],ephtimes[i])
+        kvecs.append(kvec)
+
+    # Am I to assume yaw/pitch/roll are defined in the context of the Ram direction?
+    # Yes. x is ram direction, z is nadir direction, y is Z cross X.
+    xdirs = vs
+    zdirs = np.array([ (0,0,1) for i in range(xdirs.__len__())])
+    ydirs = np.cross(zdirs,xdirs)
+    
+    # yaw: rot around z, pitch: rot around y, roll: rot around x
+    # Assuming as seems to be confirmed in documentation that the Dipole is in the
+    # x-direction on CASSIOPE, and thus, in default position, towards the ram direction.
+    dipole_dirs = []
+    kdip_angles = []
+    for i in range(xdirs.__len__()):
+        yaw_rot = rotation_matrix(zdirs[i],np.deg2rad(yaw[i]))
+        pitch_rot = rotation_matrix(ydirs[i],np.deg2rad(pitch[i]))
+        roll_rot = rotation_matrix(xdirs[i],np.deg2rad(roll[i]))
+        intermed1 = np.dot(yaw_rot,(0,0,1))
+        intermed2 = np.dot(pitch_rot,intermed1)
+        dip_dir = np.dot(roll_rot,intermed2)
+        dipole_dirs.append(dip_dir)
+        kdip_angle = np.arccos(np.dot(dip_dir,kvecs[i])/(np.linalg.norm(dip_dir)*np.linalg.norm(kvecs[i])))
+        kdip_angles.append(np.rad2deg(kdip_angle))
+    return dipole_dirs, kdip_angles    
+
+def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
+    """
+    When you're in the middle of plotting some RRI data for which the data is once 
+    a second like the basic ephemeris data, this prepares the nice x-axis with all ephem
+    info (so you just continue saying 'plt.plot(x,y), plt.show()' after calling this)
+    """
+    times = ephems_to_datetime(ephtimes)
     my_xticks = []
     num_ticks = 5
     length = times.__len__()
@@ -607,11 +655,10 @@ def plot_ramdir(date_string):
     mlon_t = mlons[0]
     mlat_t = mlats[0]
     mlt_t = mlts[0]
-    dist_t = dists[0]
     my_xticks.append("Time (UTC):    "+str(dt_t.time())+"\nLatitude:    "+str(lat_t)+\
         "\nLongitude:    "+str(lon_t)+"\nAltitude:    "+str(alt_t)+\
     "\nMagnetic Local Time:    "+str(mlt_t)+"\nMagnetic Latitude:    "+str(mlat_t)+\
-    "\nMagnetic Longitude:    "+str(mlon_t)+"\nDistance (km):    "+str(dist_t))
+    "\nMagnetic Longitude:    "+str(mlon_t))
     for i in range(num_ticks-1):
         alt_t = alts[tick_sep*(i+1)]
         lon_t = lons[tick_sep*(i+1)]
@@ -620,36 +667,39 @@ def plot_ramdir(date_string):
         mlat_t = mlats[tick_sep*(i+1)]
         dt_t  = times[tick_sep*(i+1)]
         mlt_t = mlts[tick_sep*(i+1)]
-        dist_t = dists[tick_sep*(i+1)]
         my_xticks.append(str(dt_t.time())+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(alt_t)+\
-                "\n"+str(mlt_t)+"\n"+str(mlat_t)+"\n"+str(mlon_t)+"\n"+str(dist_t))
- 
-    from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure()
-    ax = Axes3D(fig)
-    vx = [v[0] for v in vs]
-    vy = [v[1] for v in vs]
-    vz = [v[2] for v in vs]
-    Axes3D.plot(ax,vx,vy,zs=vz)
-    plt.xlabel("Vx direction (North)")
-    plt.ylabel("Vy direction (East)")
-    ax.set_zlabel("Kz direction (Up)")
-    plt.title("Change of V vector components during RRI pass on " + str(date_string))
-    plt.show() 
- 
+                "\n"+str(mlt_t)+"\n"+str(mlat_t)+"\n"+str(mlon_t))
     
+    indices = range(times.__len__())
+    tick_indices = [i*tick_sep for i in range(num_ticks)]
+    plt.xticks(tick_indices, my_xticks)
+   
+   
+
 # -----------------------------------------------------------------------------
 lon = OTTAWA_TX_LON
 lat = OTTAWA_TX_LAT
 alt = OTTAWA_TX_ELEV 
 #(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
 
-date_string = "20160418"
+date_string = "20160422"
 datpath,datname = initialize_data()
+
+fname,index_reversal = get_ottawa_data(date_string)
+lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
+dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
+
 #plot_kb_angle(date_string)
 #plot_kvec(date_string)
-
-lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(datname)
-vs,dists = get_ramdirs(lons,lats,alts,ephtimes)
-
 plot_ramdir("20160418")
+
+"""
+fig = plt.figure()
+ax = plt.subplot(111)
+plt.subplots_adjust(bottom=0.2)
+plt.plot(kdip_angles)
+ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+plt.ylabel('Angle (degrees)')
+plt.title('Plot of angle between K_los from Ottawa transmitter and Dipole direction of RRI for ' + date_string)
+plt.show()
+"""

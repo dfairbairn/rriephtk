@@ -259,8 +259,9 @@ def exit_rri():
     """
     Easy shortcut in interactive mode to unmount the system and quit.
     """
+    import sys
     os.system("fusermount -uq ./data/remote/")
-    exit()
+    sys.exit()
 
 """
 
