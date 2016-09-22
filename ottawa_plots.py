@@ -543,7 +543,8 @@ def plot_kvec(date_string):
  
 def plot_ramdir(date_string):
     """
-    
+    Makes a 3D plot of the ram direction components at each ephemeris point for
+    the given date.  
     """
     lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(datname)
     vs,dists = get_ramdirs(lons,lats,alts,ephtimes)   
@@ -565,7 +566,8 @@ def plot_ramdir(date_string):
 
 def plot_kdip_angle(date_string):
     """
-    
+    Plots the angle between the k_LOS vector and the dip_dir vector. 
+    If they were perfectly matched, we would expect exactly 180 degrees.
     """
     fname,index_reversal = get_ottawa_data(date_string)
     lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
@@ -607,15 +609,17 @@ def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
     and the direction of the RRI dipole plane.
 
     """
+    # vs is a vector of ram directions in N, E, Down coordinates
     vs,dists = get_ramdirs(lons,lats,alts,ephtimes)
-    
+   
+    # kvecs will be k_LOS vectors in N, E, Down coordinates 
     kvecs = []
     for i in range(lons.__len__()):
         kvec = get_ottawa_kvec(lons[i],lats[i],alts[i],ephtimes[i])
         kvecs.append(kvec)
 
-    # Am I to assume yaw/pitch/roll are defined in the context of the Ram direction?
-    # Yes. x is ram direction, z is nadir direction, y is Z cross X.
+    # Word of Gareth:
+    # x is ram direction, z is nadir direction, y is Z cross X.
     xdirs = vs
     zdirs = np.array([ (0,0,1) for i in range(xdirs.__len__())])
     ydirs = np.cross(zdirs,xdirs)
@@ -629,10 +633,13 @@ def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
         yaw_rot = rotation_matrix(zdirs[i],np.deg2rad(yaw[i]))
         pitch_rot = rotation_matrix(ydirs[i],np.deg2rad(pitch[i]))
         roll_rot = rotation_matrix(xdirs[i],np.deg2rad(roll[i]))
-        intermed1 = np.dot(yaw_rot,(0,0,1))
+        initial_dipole_vec = xdirs[i]
+        intermed1 = np.dot(yaw_rot,initial_dipole_vec)
         intermed2 = np.dot(pitch_rot,intermed1)
+        # After all the rotations, we have dip_dir
         dip_dir = np.dot(roll_rot,intermed2)
         dipole_dirs.append(dip_dir)
+        # Determine what the relative angle is between k_LOS and dip_dir
         kdip_angle = np.arccos(np.dot(dip_dir,kvecs[i])/(np.linalg.norm(dip_dir)*np.linalg.norm(kvecs[i])))
         kdip_angles.append(np.rad2deg(kdip_angle))
     return dipole_dirs, kdip_angles    
@@ -691,8 +698,8 @@ dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,rol
 
 #plot_kb_angle(date_string)
 #plot_kvec(date_string)
-plot_ramdir("20160418")
-
+#plot_ramdir("20160418")
+plot_kdip_angle("20160418")
 """
 fig = plt.figure()
 ax = plt.subplot(111)

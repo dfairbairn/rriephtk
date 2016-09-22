@@ -31,14 +31,14 @@ class FileLineWrapper(object):
     def __init__(self, f):
         """ Constructor for filewrapper object. """
         self.f = f
-        self.line = 0
+        self.line = 1 
         
         # To allow skipping directly to lines
         self.line_offs = []
         offset = 0
         self.f.seek(0)
         for line in f:
-            #print line
+            #print len(self.line_offs),line
             self.line_offs.append(offset)
             offset += line.__len__()
         self.f.seek(0)
@@ -57,7 +57,7 @@ class FileLineWrapper(object):
     def seekline(self,line_num):
         """ Go to the nth line in the file. """ 
         self.line = line_num
-        self.f.seek(self.line_offs[line_num])
+        self.f.seek(self.line_offs[line_num-1])
 
 def initialize_data():
     """
@@ -269,7 +269,29 @@ TESTING
 
 """
 if __name__ == "__main__":
-    data_path,dat_fname = initialize_data()
+    #data_path,dat_fname = initialize_data()
+
+    # Testing FileLineWrapper
+    f = open('./script_utils.py','r')
+    ln = f.readline()
+    f.readline()
+    offs = f.tell()
+    line = f.readline()
+
+    fw = FileLineWrapper(f)
+    assert(fw.line_offs.__len__() > 0)
+    assert(fw.line_offs[2] == offs)
+    fw.seekline(3) 
+    assert(fw.readline() == line)
+
+    linen1 = fw.line
+    fw.readline()
+    assert(linen1 + 1 == fw.line)
+    fw.seekline(0)
+    fw.readline()
+
+    exit_rri()
+
 
     start = dt.datetime(2014,7,8,1,15,9)
     end = dt.datetime(2014,7,8,1,17,30)

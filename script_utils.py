@@ -12,43 +12,6 @@ import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import datetime as dt #A wrapper class for 'file' which tracks line numbers. 
-
-class FileLineWrapper(object):
-    """
-    A wrapper class for 'file' which tracks line numbers.
-
-    **ATTRIBUTES**
-        f (file object): the file object being wrapped.
-        line (int): tracks current line number
-        byte_offs (int):  
-    """
-    def __init__(self, f):
-        """ Constructor for filewrapper object. """
-        self.f = f
-        self.line = 0
-        
-        # To allow skipping directly to lines
-        self.line_offs = []
-        offset = 0
-        self.f.seek(0)
-        for line in f:
-            #print line
-            self.line_offs.append(offset)
-            offset += line.__len__()
-        self.f.seek(0)
-    def close(self):
-        """ Closer function for filewrapper object. """
-        return self.f.close()
-    def readline(self):
-        """  """
-        self.line += 1
-        
-        return self.f.readline()
-    def seekline(self,line_num):
-        """ Go to the nth line in the file. """ 
-        self.line = line_num
-        self.f.seek(self.line_offs[line_num - 1])
-
 def ephems_to_datetime(ephem_times):
     """
     This function allows a whole array of ephemeris times to be conveniently
@@ -207,26 +170,6 @@ TESTING
 
 """
 if __name__ == "__main__":
-
-    # Note: Can't test illegal inputs because I'm not using exceptions,
-    # but the assertions in the methods should hopefully be fine for now.
-
-    # Testing FileLineWrapper
-    f = open('./script_utils.py','r')
-    f.readline()
-    f.readline()
-    offs = f.tell()
-    line = f.readline()
-    fw = FileLineWrapper(f)
-    assert(fw.line_offs.__len__() > 0)
-    assert(fw.line_offs[2] == offs)
-    fw.seekline(3) 
-
-    assert(fw.readline() == line)
-    linen1 = fw.line
-    fw.readline()
-    assert(linen1 + 1 == fw.line)
-
 
     # Testing ephem_to_datetime():
     tst_dt1 = dt.datetime(1968,5,24)
