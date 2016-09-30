@@ -177,6 +177,9 @@ def get_ramdirs(glon, glat, altitude, time):
     v (list of floats): velocity vector components (in km/s)
     dists (list of floats): full distances traveled in 1 sec in km
 
+    *** TESTING? ***
+    calculated velocity values agreed with velocity values from other sources
+
     """
     v = []
     dists = [] 
@@ -209,7 +212,6 @@ def get_closest_ottawa_approach(glons, glats, alts):
     indx_shortest (integer): index of the lat/lon pair where the ottawa transmitter is closest
     dist_shortest (float): the actual closest distance
     """
-    #TODO: Note: the 'closest distance' doesn't account for altitude! Do this?
 
     # *** FINDING THE CLOSEST APPROACH ***
     # Using the Haversine formula (in a function in script_utils.py), the closest
@@ -684,29 +686,30 @@ def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
    
 
 # -----------------------------------------------------------------------------
-lon = OTTAWA_TX_LON
-lat = OTTAWA_TX_LAT
-alt = OTTAWA_TX_ELEV 
-#(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
-
-date_string = "20160422"
-datpath,datname = initialize_data()
-
-fname,index_reversal = get_ottawa_data(date_string)
-lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
-dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
-
-#plot_kb_angle(date_string)
-#plot_kvec(date_string)
-#plot_ramdir("20160418")
-plot_kdip_angle("20160418")
-"""
-fig = plt.figure()
-ax = plt.subplot(111)
-plt.subplots_adjust(bottom=0.2)
-plt.plot(kdip_angles)
-ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
-plt.ylabel('Angle (degrees)')
-plt.title('Plot of angle between K_los from Ottawa transmitter and Dipole direction of RRI for ' + date_string)
-plt.show()
-"""
+if __name__ == "__main__":
+    lon = OTTAWA_TX_LON
+    lat = OTTAWA_TX_LAT
+    alt = OTTAWA_TX_ELEV 
+    #(bx,by,bz) = get_bvec(lon,lat,alt,dt.now())
+    
+    date_string = "20160422"
+    datpath,datname = initialize_data()
+    
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
+    dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
+    
+    #plot_kb_angle(date_string)
+    #plot_kvec(date_string)
+    #plot_ramdir("20160418")
+    plot_kdip_angle("20160418")
+    """
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    plt.subplots_adjust(bottom=0.2)
+    plt.plot(kdip_angles)
+    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    plt.ylabel('Angle (degrees)')
+    plt.title('Plot of angle between K_los from Ottawa transmitter and Dipole direction of RRI for ' + date_string)
+    plt.show()
+    """

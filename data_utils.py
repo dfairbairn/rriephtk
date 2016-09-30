@@ -27,6 +27,8 @@ class FileLineWrapper(object):
         line (int): tracks current line number
         
     ** 0 indexed lines in the file! ** 
+    ** Can use this just by going:
+            flw = FileLineWrapper(open(fname,'r'))
     """
     def __init__(self, f):
         """ Constructor for filewrapper object. """
