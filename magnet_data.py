@@ -24,16 +24,18 @@ def read_mgf_file(fname):
     f = open(fname,'r')
     for ln in f:
         spl = ln.split()
-        #print spl
         
-        if not spl[1].isnumeric():
-            continue
+        if spl[0]=='LV3_DESCRPT':
+            continue 
+        ## TODO: Make this check work for 5 decimal doubles (alt to isdigit()?)
+        #if not spl[1].isdigit():
+        #    continue
 
         # No need to retrieve other parts of data
         ephtimes.append(spl[1]) # Ephem Times
-        Bscx.append(spl[2]) # B_SCx
-        Bscy.append(spl[3]) # B_SCy
-        Bscz.append(spl[4]) # B_SCz
+        Bscx.append(float(spl[2])) # B_SCx
+        Bscy.append(float(spl[3])) # B_SCy
+        Bscz.append(float(spl[4])) # B_SCz
     return (Bscx, Bscy, Bscz, ephtimes) 
     
 def sc2ned(scx,scy,scz,ramN,ramE,ramD):
@@ -65,12 +67,18 @@ def sc2ned(scx,scy,scz,ramN,ramE,ramD):
     z = (0.,0.,1.) #Just down
     y = np.cross(z,x)
 
-    A = np.array([scx,scy,scz])
+    #A = np.array([scx,scy,scz])
+    A = np.array((x,y,z))
+    print "A:\n",A
     Ainv = np.linalg.inv(A)
-    outN = np.dot(scx,Ainv)
-    outE = np.dot(scy,Ainv)
-    outD = np.dot(scz,Ainv) 
-    return (outN,outE,outD)
+
+    print "scx:\n",scx
+    print "scy:\n",scy
+    print "scz:\n",scz
+    print "Ainv:\n",Ainv
+    #TODO: This dot product causes issues for some reason. FIX???
+    #(outN,outE,outD) = np.dot((scx,scy,scz),Ainv)
+    #return (outN,outE,outD)
 
 
 def cmp_igrf_magnetometer():
@@ -85,7 +93,6 @@ if __name__ == "__main__":
     fname,index_reversal = get_ottawa_data(date_string)
     
     # Get ephemeris data together so that 
-    #
     lons,lats,alts,ephtimes = get_rri_ephemeris(fname)
     v,dists = get_ramdirs(lons, lats, alts, ephtimes)
     bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
@@ -95,13 +102,11 @@ if __name__ == "__main__":
     print "ephtimes_bsc's first few entries look like:\n",ephtimes_bsc[0:3]
     print "ephtimes's first few entries look like:\n",ephtimes[0:3] 
     
-    print ephtimes_bsc[1].isnumeric()
-
-
     #TODO: chagne sc2ned so that we don't need this expensive loop    
     bscN = bscE = bscD = []
     for i in range(len(bscx)):
-        bscn_tmp, bsce_tmp, bscd_tmp = sc2ned(bscx,bscy,bscz,v[0],v[1],v[2])
+        vp = v[i]
+        bscn_tmp, bsce_tmp, bscd_tmp = sc2ned(bscx[i],bscy[i],bscz[i],vp[0],vp[1],vp[2])
         bscN.append(bscn_tmp)
         bscE.append(bsce_tmp)
         bscD.append(bscd_tmp)
