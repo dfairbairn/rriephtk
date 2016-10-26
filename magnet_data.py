@@ -40,29 +40,6 @@ def read_mgf_file(fname):
         Bscy.append(float(spl[3])) # B_SCy
         Bscz.append(float(spl[4])) # B_SCz
     return (Bscx, Bscy, Bscz, ephtimes) 
-    
-def sc2ned_deprecated(scx,scy,scz,ramN,ramE,ramD):
-    """
-   """
-    
-    #TODO: validate inputs  
-    x = (ramN, ramE, ramD)
-    #print scx #reminder to self: check if its already normalized
-    z = (0.,0.,1.) #Just down
-    y = np.cross(z,x)
-
-    #A = np.array([scx,scy,scz])
-    A = np.array((x,y,z))
-    #print "A:\n",A
-    Ainv = np.linalg.inv(A)
-
-    #print "scx:\n",scx
-    #print "scy:\n",scy
-    #print "scz:\n",scz
-    #print "Ainv:\n",Ainv
-
-    (outN,outE,outD) = np.dot((float(scx),float(scy),float(scz)),Ainv)
-    return (outN,outE,outD)
 
 def sc2ned(sc_vec,ram_dir,yaw,pitch,roll):
     """
@@ -100,13 +77,19 @@ def sc2ned(sc_vec,ram_dir,yaw,pitch,roll):
     roll_rot = rotation_matrix(x,np.deg2rad(-roll))
     pitch_rot = rotation_matrix(y, np.deg2rad(-pitch))
     yaw_rot = rotation_matrix(z, np.deg2rad(-yaw))
-    
+   
+    #print "Roll rotation matrix magnitude: ",np.linalg.norm(roll_rot) 
+    #print "Pitch rotation matrix magnitude: ",np.linalg.norm(pitch_rot) 
+    #print "Yaw rotation matrix magnitude: ",np.linalg.norm(yaw_rot) 
+
     intermed1 = np.dot(roll_rot, sc_vec)
     intermed2 = np.dot(pitch_rot, intermed1)
     intermed3 = np.dot(yaw_rot, intermed2)
 
     A = np.array((x,y,z))
     Ainv = np.linalg.inv(A)
+    #print "Spatial conversion matrix magnitude: ",np.linalg.norm(A)
+    #exit()
 
     # do I need to convert sc_vec's components each to floats?
     out = np.dot(intermed3, Ainv)
@@ -145,18 +128,25 @@ def sc2ned2(sc_vecs,ram_dirs,yaws,pitchs,rolls):
     zdirs = np.array([(0.,0.,1.) for i in range(xdirs.__len__())]) #Just down
     ydirs = np.cross(zdirs,xdirs)
 
+
+
     # Step 2. Reverse rotate by amounts described in roll, pitch, yaw
     outs = []
     for i in range(xdirs.__len__()):
         roll_rot = rotation_matrix(xdirs[i],np.deg2rad(-rolls[i]))
         pitch_rot = rotation_matrix(ydirs[i], np.deg2rad(-pitchs[i]))
         yaw_rot = rotation_matrix(zdirs[i], np.deg2rad(-yaws[i]))
+        #print "Roll rotation matrix magnitude: ",np.linalg.norm(roll_rot) 
+        #print "Pitch rotation matrix magnitude: ",np.linalg.norm(pitch_rot) 
+        #print "Yaw rotation matrix magnitude: ",np.linalg.norm(yaw_rot) 
         intermed1 = np.dot(roll_rot, sc_vecs[i])
         intermed2 = np.dot(pitch_rot, intermed1)
         intermed3 = np.dot(yaw_rot, intermed2)
         A = np.array((xdirs[i],ydirs[i],zdirs[i]))
         Ainv = np.linalg.inv(A)
-        # do I need to convert sc_vec's components each to floats?
+
+        #print "Spatial confersion matrix: ",A
+        #print "Spatial conversion matrix magnitude: ",np.linalg.norm(A)
         out = np.dot(intermed3, Ainv)
         outs.append(out)
     return np.array(outs)
@@ -248,8 +238,11 @@ def plot_comparison():
 
 if __name__ == "__main__":
     
-    #B_mgf,B_igrf = cmp_igrf_magnetometer()
-    plot_comparison()
+    B_mgf,B_igrf = cmp_igrf_magnetometer()
+    #plot_comparison()
+    print "MGF B field magnitude: ",np.linalg.norm(B_mgf[0])
+    print "IGRF B field magnitude: ",np.linalg.norm(B_igrf[0])
+
     """
     bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
     B_mgf = [ (bscx[i],bscy[i],bscz[i]) for i in range(len(bscx))]  
