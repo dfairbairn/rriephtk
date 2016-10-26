@@ -219,10 +219,37 @@ def cmp_igrf_magnetometer():
  
     return B_mgf,B_igrf
 
+def plot_comparison():
+    date_string = "20160418"
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(fname)
+   
+    B_mgf,B_igrf = cmp_igrf_magnetometer()
+    plt.plot(B_mgf[:,0],'b',label="MGF N Component")
+    plt.plot(B_igrf[:,0],'r',label="IGRF N Component")
+    plt.legend()
+    plt.title("Comparison of B Component in North Direction")
+    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    plt.show()
+
+    plt.plot(B_mgf[:,1],'b',label="MGF E Component")
+    plt.plot(B_igrf[:,1],'r',label="IGRF E Component")
+    plt.legend()
+    plt.title("Comparison of B Component in East Direction")
+    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    plt.show()
+
+    plt.plot(B_mgf[:,2],'b',label="MGF D Component")
+    plt.plot(B_igrf[:,2],'r',label="IGRF D Component")
+    plt.legend()
+    plt.title("Comparison of B Component in Down Direction")
+    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    plt.show()
+
 if __name__ == "__main__":
     
-    B_mgf,B_igrf = cmp_igrf_magnetometer()
-
+    #B_mgf,B_igrf = cmp_igrf_magnetometer()
+    plot_comparison()
     """
     bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
     B_mgf = [ (bscx[i],bscy[i],bscz[i]) for i in range(len(bscx))]  
