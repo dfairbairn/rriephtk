@@ -26,8 +26,8 @@ from datetime import datetime as dt
 from davitpy.models import igrf
 
 import math
-#import matplotlib.pyplot as plt
-#import numpy as np
+import matplotlib.pyplot as plt
+import numpy as np
 import sys
 
 OTTAWA_TX_LON = -75.552
@@ -261,7 +261,7 @@ def get_ottawa_data(date_string):
         index_reversal = 222 #for 22nd
         fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
-        print "Invalid input date."
+        print("Invalid input date.")
         return None    
     return fname,index_reversal
     
@@ -329,44 +329,7 @@ def plot_ottawa_ephem(date_string):
     m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
     
     # SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
-    """
-    merid1_mlat = merid2_mlat = merid3_mlat = np.arange(181) - 90.
-    merid1_mlon = merid1_mlat*0. - 10.
-    merid2_mlon = merid2_mlat*0.
-    merid3_mlon = merid3_mlat*0. + 10.
-    paral1_mlon = paral2_mlon = paral3_mlon = np.arange(361) - 45.
-    paral1_mlat = paral1_mlon*0. + 55.
-    paral2_mlat = paral2_mlon*0. + 60.
-    paral3_mlat = paral3_mlon*0. + 65.
-    
-    zero_alts = merid2_mlon
-    
-    merid1_glat,merid1_glon,r = aacgm.aacgmConvArr(merid1_mlat.tolist(),merid1_mlon.tolist(),zero_alts.tolist(),2016,1)
-    merid2_glat,merid2_glon,r = aacgm.aacgmConvArr(merid2_mlat.tolist(),merid2_mlon.tolist(),zero_alts.tolist(),2016,1)
-    merid3_glat,merid3_glon,r = aacgm.aacgmConvArr(merid3_mlat.tolist(),merid3_mlon.tolist(),zero_alts.tolist(),2016,1)
-    paral1_glat,paral1_glon,r = aacgm.aacgmConvArr(paral1_mlat.tolist(),paral1_mlon.tolist(),zero_alts.tolist(),2016,1)
-    paral2_glat,paral2_glon,r = aacgm.aacgmConvArr(paral2_mlat.tolist(),paral2_mlon.tolist(),zero_alts.tolist(),2016,1)
-    paral3_glat,paral3_glon,r = aacgm.aacgmConvArr(paral3_mlat.tolist(),paral3_mlon.tolist(),zero_alts.tolist(),2016,1)
-    
-    x,y = m(merid1_glon, merid1_glat, coords='mag')#coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
-    
-    x,y = m(merid2_glon, merid2_glat, coords='mag')#coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of 0 Degrees")
-    
-    x,y = m(merid3_glon, merid3_glat, coords='mag')#coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of +20 Degrees")
-    
-    x,y = m(paral1_glon, paral1_glat, coords='mag')#coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +35 Degrees")
-    
-    x,y = m(paral2_glon, paral2_glat, coords='mag')#coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +55 Degrees")
-    
-    x,y = m(paral3_glon, paral3_glat, coords='mag')# coords='geo')
-    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
-    """
-    
+   
     N = 10
     latdivs = 90./N
     londivs = 360./N
@@ -683,7 +646,240 @@ def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
     tick_indices = [i*tick_sep for i in range(num_ticks)]
     plt.xticks(tick_indices, my_xticks)
    
+
+def plot_1822():
+    """
+    Plot April 18th and 22nd ephemeris tracks on same mapobj
+    """
+    # TODO: fixup this documentation
+    date_string="20160418"
+       
+    fname,index_reversal = get_ottawa_data(date_string)
+    geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris(fname)
+
+    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
+    lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
+
+    times = ephems_to_datetime(ephemtimes)
+    times_22nd = ephems_to_datetime(ephtimes_22nd)
+
+    indx_shortest, dists = get_closest_ottawa_approach(geog_longs, geog_lats, alts)
+    appr_time = times[indx_shortest]
+
+    indx_shortest_22nd, dists_22nd = get_closest_ottawa_approach(lons_22nd, lats_22nd, alts_22nd)
+    appr_time_22nd = times_22nd[indx_shortest_22nd]
+    
+    # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
+    # in an array, was being rejected by the mapObj() function below. So I convert 
+    # these numbers to floats explicitly here.
+    shortest_ephem_long = float(geog_longs[indx_shortest])
+    shortest_ephem_lat = float(geog_lats[indx_shortest])
+    inversion_ephem_long = float(geog_longs[index_reversal])
+    inversion_ephem_lat = float(geog_lats[index_reversal])
+
+    shlon_22nd = float(lons_22nd[indx_shortest])
+    shlat_22nd = float(lats_22nd[indx_shortest])
+    invlon_22nd = float(lons_22nd[index_reversal])
+    invlat_22nd = float(lats_22nd[index_reversal])
+    
+    # A different font for the legend etc. might be nice
+    #fig = plt.figure()
+    font = {'fontname':'Computer Modern'}
+    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=60e3*180, height=50e3*90, coords='geo',datetime=times[0])
+    m = plotUtils.mapObj(lat_0=58.0, lon_0=0.0, width=40e3*180, height=35e3*90, coords='mag',datetime=times[0])
+
+    # FIRST: Plot the location of Ottawa
+    x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
+    m.plot(x,y,'r-o',label="Ottawa")
+    
+    # SECOND: Plot the satellite ground-track.
+    # Day of 18th
+    x,y = m(geog_longs, geog_lats, coords='geo')
+    m.plot(x,y,'b',label="EPOP ground track")
+    # Day of 22nd
+    x,y = m(lons_22nd, lats_22nd, coords='geo')
+    m.plot(x,y,'b')
+    
+    # THIRD: Plot a circle emphasizing the point of closest approach
+    x,y = m(shortest_ephem_long,shortest_ephem_lat, coords='geo')
+    m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time)))
+    x,y = m(shlon_22nd, shlat_22nd, coords='geo')
+    m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time_22nd)))  
+
+    # FOURTH: Plot the line from Ottawa to the nearest approach of the satellite.
+    x,y = m([shortest_ephem_long, OTTAWA_TX_LON], [shortest_ephem_lat, OTTAWA_TX_LAT], coords='geo')
+    m.plot(x,y,'g')
+    x,y = m([shlon_22nd, OTTAWA_TX_LON], [shlat_22nd, OTTAWA_TX_LAT], coords='geo')
+    m.plot(x,y,'g')
+    
+    
+    # FIFTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
+    x,y = m(inversion_ephem_long,inversion_ephem_lat,coords='geo')
+    m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
+    x,y = m(invlon_22nd, invlat_22nd, coords='geo')
+    m.plot(x,y,'yo')
+
+    # SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
    
+    #N = 10
+    #latdivs = 90./N
+    #londivs = 360./N
+    #for n in range(N):
+    #    merid_mlat = np.arange(181) - 90.
+    #    merid_mlon = merid_mlat*0 - n*londivs
+    #    paral_mlon = np.arange(361) - 180.
+    #    paral_mlat = paral_mlon*0. + n*latdivs
+    #    x,y = m(merid_mlon, merid_mlat, coords='mag')
+    #    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
+    #    x,y = m(paral_mlon, paral_mlat, coords='mag')
+    #    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
+    
+    # SEVENTH: GET IGRF DATA FOR EACH EPHEMERIS POINT
+    """
+    itype = 1 #Geodetic coordinates
+    pyDate = times[0] # The first time we pull from the RRI file
+    date = utils.dateToDecYear(pyDate) # decimal year
+    alt = 300. # altitude #TODO: grab altitudes for series of satellite positions we care about.
+    stp = 1. #
+    xlti, xltf, xltd = OTTAWA_TX_LAT, OTTAWA_TX_LAT,stp # latitude start, stop, step
+    xlni, xlnf, xlnd = OTTAWA_TX_LON, OTTAWA_TX_LON,stp # longitude start, stop, step
+    ifl = 0 # Main field
+    # Call fortran subroutine
+    lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+    """
+    plt.xlabel('Geographic Longitude (degrees)')
+    plt.ylabel('Geographic Latitude (degrees)')
+    plt.title("CASSIOPE Ephemeris vs. Ottawa radar on April 18th, 2016 and April 22nd, 2016")
+    plt.legend(loc='lower right', numpoints = 1)#loc='best')
+    plt.show()
+
+def plot_all5():
+    """
+    Plot April 18th-22nd ephemeris tracks on same mapobj
+    """
+    fname_18th, idx_rev_18th = get_ottawa_data("20160418")
+    lons_18th, lats_18th, alts_18th, ephtimes_18th = get_rri_ephemeris(fname_18th)
+    fname_19th, idx_rev_19th = get_ottawa_data("20160419")
+    lons_19th, lats_19th, alts_19th, ephtimes_19th = get_rri_ephemeris(fname_19th)
+    fname_20th, idx_rev_20th = get_ottawa_data("20160420")
+    lons_20th, lats_20th, alts_20th, ephtimes_20th = get_rri_ephemeris(fname_20th)
+    fname_21st, idx_rev_21st = get_ottawa_data("20160421")
+    lons_21st, lats_21st, alts_21st, ephtimes_21st = get_rri_ephemeris(fname_21st)
+    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
+    lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
+
+    times_18th = ephems_to_datetime(ephtimes_18th)
+    times_19th = ephems_to_datetime(ephtimes_19th)
+    times_20th = ephems_to_datetime(ephtimes_20th)
+    times_21st = ephems_to_datetime(ephtimes_21st)
+    times_22nd = ephems_to_datetime(ephtimes_22nd)
+
+    indx_shortest_18th, dists_18th = get_closest_ottawa_approach(lons_18th, lats_18th, alts_18th)
+    indx_shortest_19th, dists_19th = get_closest_ottawa_approach(lons_19th, lats_19th, alts_19th)
+    indx_shortest_20th, dists_20th = get_closest_ottawa_approach(lons_20th, lats_20th, alts_20th)
+    indx_shortest_21st, dists_21st = get_closest_ottawa_approach(lons_21st, lats_21st, alts_21st)
+    indx_shortest_22nd, dists_22nd = get_closest_ottawa_approach(lons_22nd, lats_22nd, alts_22nd)
+    
+    # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
+    # in an array, was being rejected by the mapObj() function below. So I convert 
+    # these numbers to floats explicitly here.
+    shlon_18th = float(lons_18th[indx_shortest_18th])
+    shlat_18th = float(lats_18th[indx_shortest_18th])
+    invlon_18th = float(lons_18th[idx_rev_18th])
+    invlat_18th = float(lats_18th[idx_rev_18th])
+
+    shlon_19th = float(lons_19th[indx_shortest_19th])
+    shlat_19th = float(lats_19th[indx_shortest_19th])
+    invlon_19th = float(lons_19th[idx_rev_19th])
+    invlat_19th = float(lats_19th[idx_rev_19th])
+
+    shlon_20th = float(lons_20th[indx_shortest_20th])
+    shlat_20th = float(lats_20th[indx_shortest_20th])
+    invlon_20th = float(lons_20th[idx_rev_20th])
+    invlat_20th = float(lats_20th[idx_rev_20th])
+
+    shlon_21st = float(lons_21st[indx_shortest_21st])
+    shlat_21st = float(lats_21st[indx_shortest_21st])
+    invlon_21st = float(lons_21st[idx_rev_21st])
+    invlat_21st = float(lats_21st[idx_rev_21st])
+
+    shlon_22nd = float(lons_22nd[indx_shortest_22nd])
+    shlat_22nd = float(lats_22nd[indx_shortest_22nd])
+    invlon_22nd = float(lons_22nd[idx_rev_22nd])
+    invlat_22nd = float(lats_22nd[idx_rev_22nd])
+    
+    # A different font for the legend etc. might be nice
+    #fig = plt.figure()
+    font = {'fontname':'Computer Modern'}
+    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=50e3*180, height=40e3*90, coords='geo',datetime=times_20th[0])
+    m = plotUtils.mapObj(lat_0=58.0, lon_0=0.0, width=40e3*180, height=35e3*90, coords='mag',datetime=times_20th[0])
+
+    # FIRST: Plot the location of Ottawa
+    x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
+    m.plot(x,y,'r-o',label="Ottawa")
+    
+    # SECOND: Plot the satellite ground-track.
+    x,y = m(lons_18th, lats_18th, coords='geo')
+    m.plot(x,y,'b',label="EPOP ground track")
+    x,y = m(lons_19th, lats_19th, coords='geo')
+    m.plot(x,y,'b')
+    x,y = m(lons_20th, lats_20th, coords='geo')
+    m.plot(x,y,'b')
+    x,y = m(lons_21st, lats_21st, coords='geo')
+    m.plot(x,y,'b')
+    x,y = m(lons_22nd, lats_22nd, coords='geo')
+    m.plot(x,y,'b')
+    
+    # THIRD: Plot a circle emphasizing the point of closest approach
+    x,y = m(shlon_18th, shlat_18th, coords='geo')
+    m.plot(x,y,'bo',label='Closest Approach')
+    x,y = m(shlon_19th, shlat_19th, coords='geo')
+    m.plot(x,y,'bo')
+    x,y = m(shlon_20th, shlat_20th, coords='geo')
+    m.plot(x,y,'bo')
+    x,y = m(shlon_21st, shlat_21st, coords='geo')
+    m.plot(x,y,'bo')
+    x,y = m(shlon_22nd, shlat_22nd, coords='geo')
+    m.plot(x,y,'bo')
+
+    # FOURTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
+    x,y = m(invlon_18th, invlat_18th, coords='geo')
+    m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
+    x,y = m(invlon_19th, invlat_19th, coords='geo')
+    m.plot(x,y,'yo')
+    x,y = m(invlon_20th, invlat_20th, coords='geo')
+    m.plot(x,y,'yo')
+    x,y = m(invlon_21st, invlat_21st, coords='geo')
+    m.plot(x,y,'yo')
+    x,y = m(invlon_22nd, invlat_22nd, coords='geo')
+    m.plot(x,y,'yo')
+
+    # FIFTH: a few lines of magnetic longitude and latitude will be plotted as well.
+    #N = 10
+    #latdivs = 90./N
+    #londivs = 360./N
+    #for n in range(N):
+    #    merid_mlat = np.arange(181) - 90.
+    #    merid_mlon = merid_mlat*0 - n*londivs
+    #    paral_mlon = np.arange(361) - 180.
+    #    paral_mlat = paral_mlon*0. + n*latdivs
+    #    x,y = m(merid_mlon, merid_mlat, coords='mag')
+    #    if n == 0:
+    #        m.plot(x,y,'k',label="Magnetic Longitude and Latitude")
+    #        continue
+    #    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
+    #    x,y = m(paral_mlon, paral_mlat, coords='mag')
+    #    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
+    
+    plt.xlabel('Magnetic Longitude (degrees)')
+    plt.ylabel('Magnetic Latitude (degrees)')
+    plt.title("CASSIOPE Ephemeris vs. Ottawa radar from April 18th - 22nd, 2016")
+    plt.legend(loc='lower right', numpoints = 1)#loc='best')
+    plt.show()
+
+
+ 
+ 
 
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -702,7 +898,7 @@ if __name__ == "__main__":
     #plot_kb_angle(date_string)
     #plot_kvec(date_string)
     #plot_ramdir("20160418")
-    plot_kdip_angle("20160418")
+    #plot_kdip_angle("20160418")
     """
     fig = plt.figure()
     ax = plt.subplot(111)
