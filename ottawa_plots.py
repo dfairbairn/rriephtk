@@ -166,7 +166,6 @@ def get_ramdirs(glon, glat, altitude, time):
     """
     Computes the velocity components of the satellite based on its ephemeris.
     
-
     *** PARAMS ***
     glon (np.array of floats): the longitudes of the satellite (deg) 
     glat (np.array of floats): the latitudes of the satellite (deg)
@@ -179,6 +178,7 @@ def get_ramdirs(glon, glat, altitude, time):
 
     *** TESTING? ***
     calculated velocity values agreed with velocity values from other sources
+
 
     """
     v = []
