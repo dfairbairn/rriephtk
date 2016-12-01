@@ -241,30 +241,79 @@ def get_ottawa_data(date_string):
     data (including the index/seconds into the pass at which the Faraday 
     rotation reversal occurs).
 
+    Source: Inspection of Plots of Orientation Angle
+
     """
     if isinstance(date_string, type(None)): date_string="20160418"
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
         fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
-        index_reversal = 167 #for 18th
+        index_reversal = 167 #for 18th # Stay
     elif "20160419"==date_string:
-        index_reversal = 178 #for 19th
+        #index_reversal = 178 #for 19th # Could go -1
+        index_reversal = 177
         fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
-        index_reversal = 213 #for 20th
+        index_reversal = 213 #for 20th # Stay
         fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
-        index_reversal = 205 #?? for 21st?
+        #index_reversal = 205 #?? for 21st? # Could go up +5
+        index_reversal = 210
         fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
-        index_reversal = 222 #for 22nd
+        #index_reversal = 222 #for 22nd # Could go down -1 
+        index_reversal = 221
         fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print("Invalid input date.")
         return None    
     return fname,index_reversal
-    
+
+def get_ottawa_data2(date_string):
+    """
+    Does same as get_ottawa_data() only this time, it also includes the index
+    of the reversal in ellipticity angle (in addition to the orientation angle
+    flipping re: Faraday rotation).
+
+    Param: date_string - formatted like "20160422"
+
+    Returns: fname, rev_idx_orientation, rev_idx_ellipt
+
+    Source: Inspection of Plots.
+    (Glenn's inspection of ellipticity reversal, both of ours for orientation reversal)
+
+    """
+    if isinstance(date_string, type(None)): date_string="20160418"
+
+    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
+    if "20160418"==date_string:
+        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        orientation_rev = 168 #for 18th # Stay
+        ellipt_rev = 167
+    elif "20160419"==date_string:
+        orientation_rev = 177
+        ellipt_rev = 158
+        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+    elif "20160420"==date_string:
+        orientation_rev  = 213 #for 20th # Stay
+        ellipt_rev = 133 # ??? it also does something near 213 though
+        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+    elif "20160421"==date_string:
+        orientation_rev  = 210
+        ellipt_rev = 125
+        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+    elif "20160422"==date_string:
+        orientation_rev  = 221
+        ellipt_rev = 110 
+        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+    else:
+        print("Invalid input date.")
+        return None    
+    return fname,orientation_rev,ellipt_rev
+
+   
+ 
 def plot_ottawa_ephem(date_string):
     """
     Put the plotting procedure for looking at satellite ephemeris vs. Ottawa
@@ -310,7 +359,7 @@ def plot_ottawa_ephem(date_string):
     
     # FIRST: Plot the location of Ottawa
     x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
-    m.plot(x,y,'ro',label="Ottawa")
+    m.plot(x,y,'r-o',markersize=9,label="Ottawa")
     
     # SECOND: Plot the satellite ground-track.
     x,y = m(geog_longs, geog_lats, coords='geo')
@@ -318,7 +367,7 @@ def plot_ottawa_ephem(date_string):
     
     # THIRD: Plot a circle emphasizing the point of closest approach
     x,y = m(shortest_ephem_long,shortest_ephem_lat, coords='geo')
-    m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time)))
+    m.plot(x,y,'bo',label=("Closest Approach at " + str(appr_time)))
     
     # FOURTH: Plot the line from Ottawa to the nearest approach of the satellite.
     x,y = m([shortest_ephem_long, OTTAWA_TX_LON], [shortest_ephem_lat, OTTAWA_TX_LAT], coords='geo')
@@ -654,10 +703,10 @@ def plot_1822():
     # TODO: fixup this documentation
     date_string="20160418"
        
-    fname,index_reversal = get_ottawa_data(date_string)
+    fname,index_reversal,ellip_reversal = get_ottawa_data2(date_string)
     geog_longs,geog_lats,alts,ephemtimes = get_rri_ephemeris(fname)
 
-    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
+    fname_22nd, idx_rev_22nd, ellip_reversal_22nd = get_ottawa_data2("20160422")
     lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
 
     times = ephems_to_datetime(ephemtimes)
@@ -676,21 +725,25 @@ def plot_1822():
     shortest_ephem_lat = float(geog_lats[indx_shortest])
     inversion_ephem_long = float(geog_longs[index_reversal])
     inversion_ephem_lat = float(geog_lats[index_reversal])
+    elliplon_18th = float(geog_longs[ellip_reversal])
+    elliplat_18th = float(geog_lats[ellip_reversal])
 
+    elliplon_22nd = float(lons_22nd[ellip_reversal_22nd])
+    elliplat_22nd = float(lats_22nd[ellip_reversal_22nd])
     shlon_22nd = float(lons_22nd[indx_shortest])
     shlat_22nd = float(lats_22nd[indx_shortest])
     invlon_22nd = float(lons_22nd[index_reversal])
     invlat_22nd = float(lats_22nd[index_reversal])
     
     # A different font for the legend etc. might be nice
-    #fig = plt.figure()
+    fig = plt.figure(1, figsize=(14,8))
     font = {'fontname':'Computer Modern'}
-    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=60e3*180, height=50e3*90, coords='geo',datetime=times[0])
-    m = plotUtils.mapObj(lat_0=58.0, lon_0=0.0, width=40e3*180, height=35e3*90, coords='mag',datetime=times[0])
+    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=60e3*180, height=50e3*90, coords='geo', resolution='i',datetime=times[0])
+    m = plotUtils.mapObj(lat_0=57.0, lon_0=0.0, width=25e3*180, height=25e3*90, coords='mag', resolution='i', datetime=times[0])
 
     # FIRST: Plot the location of Ottawa
     x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
-    m.plot(x,y,'r-o',label="Ottawa")
+    m.plot(x,y,'r-o',markersize=9,label="Ottawa")
     
     # SECOND: Plot the satellite ground-track.
     # Day of 18th
@@ -702,9 +755,9 @@ def plot_1822():
     
     # THIRD: Plot a circle emphasizing the point of closest approach
     x,y = m(shortest_ephem_long,shortest_ephem_lat, coords='geo')
-    m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time)))
+    m.plot(x,y,'bo')
     x,y = m(shlon_22nd, shlat_22nd, coords='geo')
-    m.plot(x,y,'bo',label=("Shortest Approach at " + str(appr_time_22nd)))  
+    m.plot(x,y,'bo',label=("Closest Approach TX"))
 
     # FOURTH: Plot the line from Ottawa to the nearest approach of the satellite.
     x,y = m([shortest_ephem_long, OTTAWA_TX_LON], [shortest_ephem_lat, OTTAWA_TX_LAT], coords='geo')
@@ -719,21 +772,12 @@ def plot_1822():
     x,y = m(invlon_22nd, invlat_22nd, coords='geo')
     m.plot(x,y,'yo')
 
-    # SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
-   
-    #N = 10
-    #latdivs = 90./N
-    #londivs = 360./N
-    #for n in range(N):
-    #    merid_mlat = np.arange(181) - 90.
-    #    merid_mlon = merid_mlat*0 - n*londivs
-    #    paral_mlon = np.arange(361) - 180.
-    #    paral_mlat = paral_mlon*0. + n*latdivs
-    #    x,y = m(merid_mlon, merid_mlat, coords='mag')
-    #    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
-    #    x,y = m(paral_mlon, paral_mlat, coords='mag')
-    #    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
-    
+    # SIXTH: Plot the point we've determined to be the ellipticity reversal
+    x,y = m(elliplon_18th, elliplat_18th, coords='geo')
+    m.plot(x,y,'go',markersize=4,label=("Reversal of Ellipticity Angle"))
+    x,y = m(elliplon_22nd, elliplat_22nd, coords='geo')
+    m.plot(x,y,'go',markersize=4)
+
     # SEVENTH: GET IGRF DATA FOR EACH EPHEMERIS POINT
     """
     itype = 1 #Geodetic coordinates
@@ -747,26 +791,34 @@ def plot_1822():
     # Call fortran subroutine
     lat,lon,d,s,h,x,y,z,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
     """
-    plt.xlabel('Geographic Longitude (degrees)')
-    plt.ylabel('Geographic Latitude (degrees)')
-    plt.title("CASSIOPE Ephemeris vs. Ottawa radar on April 18th, 2016 and April 22nd, 2016")
+    ax = plt.gca()
+    ax.set_xlabel('Magnetic Longitude (degrees)')
+    ax.xaxis.set_label_coords(0.5,-0.050)
+    #plt.xlabel('Magnetic Longitude (degrees)')
+    plt.ylabel('Magnetic Latitude (degrees)')
+    plt.title("ePOP Pass vs. Ottawa radar on April 18th, 2016 (left) and April 22nd, 2016 (right)")
     plt.legend(loc='lower right', numpoints = 1)#loc='best')
+    
+    plt.savefig('tmp_1822.eps', format='eps', bbox_inches='tight')
+    plt.savefig('tmp_1822.png', format='png', bbox_inches='tight')
     plt.show()
 
 def plot_all5():
     """
     Plot April 18th-22nd ephemeris tracks on same mapobj
     """
-    fname_18th, idx_rev_18th = get_ottawa_data("20160418")
+    fname_18th, idx_rev_18th, ellip_rev_18th = get_ottawa_data2("20160418")
     lons_18th, lats_18th, alts_18th, ephtimes_18th = get_rri_ephemeris(fname_18th)
-    fname_19th, idx_rev_19th = get_ottawa_data("20160419")
+    fname_19th, idx_rev_19th, ellip_rev_19th = get_ottawa_data2("20160419")
     lons_19th, lats_19th, alts_19th, ephtimes_19th = get_rri_ephemeris(fname_19th)
-    fname_20th, idx_rev_20th = get_ottawa_data("20160420")
+    fname_20th, idx_rev_20th, ellip_rev_20th = get_ottawa_data2("20160420")
     lons_20th, lats_20th, alts_20th, ephtimes_20th = get_rri_ephemeris(fname_20th)
-    fname_21st, idx_rev_21st = get_ottawa_data("20160421")
+    fname_21st, idx_rev_21st, ellip_rev_21st = get_ottawa_data2("20160421")
     lons_21st, lats_21st, alts_21st, ephtimes_21st = get_rri_ephemeris(fname_21st)
-    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
+    fname_22nd, idx_rev_22nd, ellip_rev_22nd = get_ottawa_data2("20160422")
     lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
+
+    print "ellip_rev_21st: ",ellip_rev_21st, "idx_rev_21st: ", idx_rev_21st
 
     times_18th = ephems_to_datetime(ephtimes_18th)
     times_19th = ephems_to_datetime(ephtimes_19th)
@@ -787,52 +839,62 @@ def plot_all5():
     shlat_18th = float(lats_18th[indx_shortest_18th])
     invlon_18th = float(lons_18th[idx_rev_18th])
     invlat_18th = float(lats_18th[idx_rev_18th])
-
+    elliplon_18th = float(lons_18th[ellip_rev_18th])
+    elliplat_18th = float(lats_18th[ellip_rev_18th])
+ 
     shlon_19th = float(lons_19th[indx_shortest_19th])
     shlat_19th = float(lats_19th[indx_shortest_19th])
     invlon_19th = float(lons_19th[idx_rev_19th])
     invlat_19th = float(lats_19th[idx_rev_19th])
+    elliplon_19th = float(lons_19th[ellip_rev_19th])
+    elliplat_19th = float(lats_19th[ellip_rev_19th])
 
     shlon_20th = float(lons_20th[indx_shortest_20th])
     shlat_20th = float(lats_20th[indx_shortest_20th])
     invlon_20th = float(lons_20th[idx_rev_20th])
     invlat_20th = float(lats_20th[idx_rev_20th])
+    elliplon_20th = float(lons_20th[ellip_rev_20th])
+    elliplat_20th = float(lats_20th[ellip_rev_20th])
 
     shlon_21st = float(lons_21st[indx_shortest_21st])
     shlat_21st = float(lats_21st[indx_shortest_21st])
     invlon_21st = float(lons_21st[idx_rev_21st])
     invlat_21st = float(lats_21st[idx_rev_21st])
+    elliplon_21st = float(lons_21st[ellip_rev_21st])
+    elliplat_21st = float(lats_21st[ellip_rev_21st])
 
     shlon_22nd = float(lons_22nd[indx_shortest_22nd])
     shlat_22nd = float(lats_22nd[indx_shortest_22nd])
     invlon_22nd = float(lons_22nd[idx_rev_22nd])
     invlat_22nd = float(lats_22nd[idx_rev_22nd])
-    
+    elliplon_22nd = float(lons_22nd[ellip_rev_22nd])
+    elliplat_22nd = float(lats_22nd[ellip_rev_22nd])
+   
     # A different font for the legend etc. might be nice
-    #fig = plt.figure()
+    fig = plt.figure(1, figsize=(14,8))
     font = {'fontname':'Computer Modern'}
-    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=50e3*180, height=40e3*90, coords='geo',datetime=times_20th[0])
-    m = plotUtils.mapObj(lat_0=58.0, lon_0=0.0, width=40e3*180, height=35e3*90, coords='mag',datetime=times_20th[0])
+    #m = plotUtils.mapObj(lat_0=45.0, lon_0=-75.0, width=50e3*180, height=40e3*90, coords='geo',resolution='i',datetime=times_20th[0])
+    m = plotUtils.mapObj(lat_0=57.0, lon_0=0.0, width=25e3*180, height=25e3*90, coords='mag',resolution='i',datetime=times_20th[0])
 
     # FIRST: Plot the location of Ottawa
     x,y = m(OTTAWA_TX_LON,OTTAWA_TX_LAT,coords='geo')
-    m.plot(x,y,'r-o',label="Ottawa")
+    m.plot(x,y,'r-o',markersize=9,label="Ottawa")
     
     # SECOND: Plot the satellite ground-track.
     x,y = m(lons_18th, lats_18th, coords='geo')
-    m.plot(x,y,'b',label="EPOP ground track")
+    m.plot(x,y,'b-',label="April 18th")#label="EPOP ground track")
     x,y = m(lons_19th, lats_19th, coords='geo')
-    m.plot(x,y,'b')
+    m.plot(x,y,'b:',label="April 19th")
     x,y = m(lons_20th, lats_20th, coords='geo')
-    m.plot(x,y,'b')
+    m.plot(x,y,'b--',label="April 20th")
     x,y = m(lons_21st, lats_21st, coords='geo')
-    m.plot(x,y,'b')
+    m.plot(x,y,'k-',label="April 21st")
     x,y = m(lons_22nd, lats_22nd, coords='geo')
-    m.plot(x,y,'b')
+    m.plot(x,y,'k:',label="April 22nd")
     
     # THIRD: Plot a circle emphasizing the point of closest approach
     x,y = m(shlon_18th, shlat_18th, coords='geo')
-    m.plot(x,y,'bo',label='Closest Approach')
+    m.plot(x,y,'bo',label='Closest Approach TX')
     x,y = m(shlon_19th, shlat_19th, coords='geo')
     m.plot(x,y,'bo')
     x,y = m(shlon_20th, shlat_20th, coords='geo')
@@ -844,7 +906,7 @@ def plot_all5():
 
     # FOURTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
     x,y = m(invlon_18th, invlat_18th, coords='geo')
-    m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
+    m.plot(x,y,'yo',markersize=6,label=("Inversion of Faraday Rotation"))
     x,y = m(invlon_19th, invlat_19th, coords='geo')
     m.plot(x,y,'yo')
     x,y = m(invlon_20th, invlat_20th, coords='geo')
@@ -853,6 +915,18 @@ def plot_all5():
     m.plot(x,y,'yo')
     x,y = m(invlon_22nd, invlat_22nd, coords='geo')
     m.plot(x,y,'yo')
+
+    # FIFTH: Plot the point we've determined to be the ellipticity reversal
+    x,y = m(elliplon_18th, elliplat_18th, coords='geo')
+    m.plot(x,y,'go',markersize=4,label=("Reversal of Ellipticity Angle"))
+    x,y = m(elliplon_19th, elliplat_19th, coords='geo')
+    m.plot(x,y,'go',markersize=4)
+    x,y = m(elliplon_20th, elliplat_20th, coords='geo')
+    m.plot(x,y,'go',markersize=4)
+    x,y = m(elliplon_21st, elliplat_21st, coords='geo')
+    m.plot(x,y,'go',markersize=4)
+    x,y = m(elliplon_22nd, elliplat_22nd, coords='geo')
+    m.plot(x,y,'go',markersize=4)
 
     # FIFTH: a few lines of magnetic longitude and latitude will be plotted as well.
     #N = 10
@@ -870,14 +944,16 @@ def plot_all5():
     #    m.plot(x,y,'k')#,label="Line of Magnetic Longitude of -20 Degrees")
     #    x,y = m(paral_mlon, paral_mlat, coords='mag')
     #    m.plot(x,y,'k')#,label="Line of Magnetic Latitude of +75 Degrees")
-    
-    plt.xlabel('Magnetic Longitude (degrees)')
+    ax = plt.gca()
+    ax.set_xlabel('Magnetic Longitude (degrees)')
+    ax.xaxis.set_label_coords(0.5,-0.050)
+    #plt.xlabel('Magnetic Longitude (degrees)')
     plt.ylabel('Magnetic Latitude (degrees)')
-    plt.title("CASSIOPE Ephemeris vs. Ottawa radar from April 18th - 22nd, 2016")
+    plt.title("ePOP Pass vs. Ottawa radar from April 18th - 22nd, 2016")
     plt.legend(loc='lower right', numpoints = 1)#loc='best')
+    plt.savefig('tmp_all5.eps', format='eps', bbox_inches='tight')
+    plt.savefig('tmp_all5.png', format='png', bbox_inches='tight')
     plt.show()
-
-
  
  
 
@@ -909,3 +985,4 @@ if __name__ == "__main__":
     plt.title('Plot of angle between K_los from Ottawa transmitter and Dipole direction of RRI for ' + date_string)
     plt.show()
     """
+    
