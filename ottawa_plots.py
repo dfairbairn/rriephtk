@@ -375,7 +375,7 @@ def plot_ottawa_ephem(date_string):
     
     # FIFTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
     x,y = m(inversion_ephem_long,inversion_ephem_lat,coords='geo')
-    m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
+    m.plot(x,y,'yo',label=("Inflection of Faraday Rotation"))
     
     # SIXTH: a few lines of magnetic longitude and latitude will be plotted as well.
    
@@ -485,7 +485,7 @@ def plot_kb_angle(date_string):
     plt.plot(indices,angles,label="Angle between B and K")
     delta = int(max(angles) - min(angles))
     offs = min(angles)
-    plt.plot((index_reversal)*np.ones(delta),offs+np.array(range(delta)),'y',label="Time/Location of Faraday Rotation Reversal")
+    plt.plot((index_reversal)*np.ones(delta),offs+np.array(range(delta)),'y',label="Time/Location of Faraday Rotation Inflection")
     plt.plot((indx_closest)*np.ones(delta),offs+np.array(range(delta)),'g',label="Approximate Location of closest approach (" + str(dists[indx_closest]) + " km)")
     plt.title("Relative angle of B vector vs. K vector for CASSIOPE ephemeris on " + str(date_string))
     #plt.xlabel('Time elapsed during pass (seconds)')
@@ -768,13 +768,13 @@ def plot_1822():
     
     # FIFTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
     x,y = m(inversion_ephem_long,inversion_ephem_lat,coords='geo')
-    m.plot(x,y,'yo',label=("Inversion of Faraday Rotation"))
+    m.plot(x,y,'yo',label=("Inflection of Faraday Rotation"))
     x,y = m(invlon_22nd, invlat_22nd, coords='geo')
     m.plot(x,y,'yo')
 
     # SIXTH: Plot the point we've determined to be the ellipticity reversal
     x,y = m(elliplon_18th, elliplat_18th, coords='geo')
-    m.plot(x,y,'go',markersize=4,label=("Reversal of Ellipticity Angle"))
+    m.plot(x,y,'go',markersize=4,label=("Inflection of Ellipticity Angle"))
     x,y = m(elliplon_22nd, elliplat_22nd, coords='geo')
     m.plot(x,y,'go',markersize=4)
 
@@ -817,9 +817,7 @@ def plot_all5():
     lons_21st, lats_21st, alts_21st, ephtimes_21st = get_rri_ephemeris(fname_21st)
     fname_22nd, idx_rev_22nd, ellip_rev_22nd = get_ottawa_data2("20160422")
     lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
-
-    print "ellip_rev_21st: ",ellip_rev_21st, "idx_rev_21st: ", idx_rev_21st
-
+    
     times_18th = ephems_to_datetime(ephtimes_18th)
     times_19th = ephems_to_datetime(ephtimes_19th)
     times_20th = ephems_to_datetime(ephtimes_20th)
@@ -906,7 +904,7 @@ def plot_all5():
 
     # FOURTH: Plot the piont I've determined is the point of the Faraday Rotation inversion.
     x,y = m(invlon_18th, invlat_18th, coords='geo')
-    m.plot(x,y,'yo',markersize=6,label=("Inversion of Faraday Rotation"))
+    m.plot(x,y,'yo',markersize=6,label=("Inflection of Faraday Rotation"))
     x,y = m(invlon_19th, invlat_19th, coords='geo')
     m.plot(x,y,'yo')
     x,y = m(invlon_20th, invlat_20th, coords='geo')
@@ -918,7 +916,7 @@ def plot_all5():
 
     # FIFTH: Plot the point we've determined to be the ellipticity reversal
     x,y = m(elliplon_18th, elliplat_18th, coords='geo')
-    m.plot(x,y,'go',markersize=4,label=("Reversal of Ellipticity Angle"))
+    m.plot(x,y,'go',markersize=4,label=("Inflection of Ellipticity Angle"))
     x,y = m(elliplon_19th, elliplat_19th, coords='geo')
     m.plot(x,y,'go',markersize=4)
     x,y = m(elliplon_20th, elliplat_20th, coords='geo')
