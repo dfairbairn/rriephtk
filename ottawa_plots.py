@@ -242,8 +242,12 @@ def get_ottawa_data(date_string):
     rotation reversal occurs).
 
     """
-    if isinstance(date_string, type(None)): date_string="20160418"
+    import re
+    import os
+    if type(date_string)!=type("e.g."): date_string="20160418"
 
+    f_list = os.listdir('./data')
+    candidate_files = [ u for u in f_list if re.search("RRI_"+date_string+".+", u) ]
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
         fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
@@ -260,8 +264,11 @@ def get_ottawa_data(date_string):
     elif "20160422"==date_string:
         index_reversal = 222 #for 22nd
         fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+    elif candidate_files != []:
+        fname = "./data/" + candidate_files[0]
+        index_reversal = -1
     else:
-        print("Invalid input date.")
+        print("Invalid input")
         return None    
     return fname,index_reversal
     
@@ -876,10 +883,6 @@ def plot_all5():
     plt.title("CASSIOPE Ephemeris vs. Ottawa radar from April 18th - 22nd, 2016")
     plt.legend(loc='lower right', numpoints = 1)#loc='best')
     plt.show()
-
-
- 
- 
 
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":

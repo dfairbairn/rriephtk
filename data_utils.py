@@ -257,6 +257,17 @@ def get_line_in_file(fl, srch_str):
         return -1
     return line_num
 
+def list_mgf_files(path='data/mgf/'):
+    """ 
+    Returns a list of the mgf files that can simply be indexed so as to easily
+    grab complicated filenames.
+    """
+    import os
+    import re
+    f_list = os.listdir(path)
+    candidate_files = [ u for u in f_list if re.search("MGF_", u) ]
+    return candidate_files
+
 def exit_rri():
     """
     Easy shortcut in interactive mode to unmount the system and quit.

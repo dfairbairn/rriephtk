@@ -9,7 +9,7 @@ from data_utils import *
 from ottawa_plots import *
 import h5py
 
-sample_mgf_datafile = "data/mgf/MGF_20160418_222505_224033_V_01_00_00.1sps.SC.lv3"
+sample_mgf_datafile = "data/mgf/MGF_20160418_222505_224033_V_01_00_00.1sps.GEI.lv3"
 
 def read_mgf_file(fname):
     # if doesn't exist, exit with error
@@ -41,68 +41,16 @@ def read_mgf_file(fname):
         Bscz.append(float(spl[4])) # B_SCz
     return (Bscx, Bscy, Bscz, ephtimes) 
 
-def sc2ned(sc_vec,ram_dir,yaw,pitch,roll):
+def satframe2ned(sc_vecs,ram_dirs,yaws,pitchs,rolls):
     """
-    Takes some space-craft based coordinates and the spacecraft's ram direction
-    in North-East-Down components, and the spacecraft's yaw, pitch, and roll,
-    and converts the space-craft coords to NED.
+    This function takes coordinates expressed in terms of directions with 
+    respect to the satellite body. The x,y,z coordinates would normally 
+    correspond to regular spacecraft coordinates, but in this case the body
+    of the spacecraft is assumed to be oriented away from its ram direction, 
+    which is corrected for.
 
-    *** PARAMS ***
-    sc_vec: the coords in terms of the spacecraft frame (x=ram, z=nadir)
-    ram_dir: the ram direction in N-E-D components
-    yaw: rotation around spacecraft Z axis in degrees
-    pitch: rotation around spacecraft Y axis in degrees
-    roll: rotation around spacecraft X axis in degrees
-
-    *** RETURNS ***
-    out: output vector (should be in same units as input)
- 
-    **!!Standards Dilemma!!**
-    Word of Gareth is that x is ram dir, z is nadir dir, and y is Z cross X.
-    But then if satellite has vertical component (which it does, though its 
-    small), this isn't a right handed coord system. Possible solutions are:
-    - ignore it and hope the error is small (should be)
-    - define x to just be ram direction in North and East directions (not down)
-
-    Initially, I proceed with solution approach #1 for simplicity 
- 
-    """
-    # Step 1. Compute Spacecraft X Y Z directions from the ram direction
-    # Ram direction should be in N,E,D components already
-    x = ram_dir/np.linalg.norm(ram_dir)
-    print x #reminder to self: check if its already normalized
-    z = (0.,0.,1.) #Just down
-    y = np.cross(z,x)
-
-    # Step 2. Reverse rotate by amounts described in roll, pitch, yaw
-    roll_rot = rotation_matrix(x,np.deg2rad(-roll))
-    pitch_rot = rotation_matrix(y, np.deg2rad(-pitch))
-    yaw_rot = rotation_matrix(z, np.deg2rad(-yaw))
-   
-    print "Roll rotation matrix magnitude: ",np.linalg.norm(roll_rot) 
-    print "Pitch rotation matrix magnitude: ",np.linalg.norm(pitch_rot) 
-    print "Yaw rotation matrix magnitude: ",np.linalg.norm(yaw_rot) 
-
-    intermed1 = np.dot(roll_rot, sc_vec)
-    intermed2 = np.dot(pitch_rot, intermed1)
-    intermed3 = np.dot(yaw_rot, intermed2)
-
-    A = np.array((x,y,z))
-    Ainv = np.linalg.inv(A)
-    print "Spatial conversion matrix magnitude: ",np.linalg.norm(A)
-    exit()
-
-    # do I need to convert sc_vec's components each to floats?
-    out = np.dot(intermed3, Ainv)
-    return out
-
-
-def sc2ned2(sc_vecs,ram_dirs,yaws,pitchs,rolls):
-    """
-    Takes some coordinates expressed relative to the spacecraft body as well as
-    the spacecraft's ram direction in North-East-Down components, and the 
-    spacecraft's yaw, pitch, and roll, and converts the space-craft coords to 
-    NED.
+    This correction is achieved by accounting for the craft's yaw, pitch, roll
+    values at each ephemeris point.
 
     Note: yaw, pitch, roll are angles of rotation around three 'SC' coordinate
     axes. 'X' is in the ram direction, 'Z' is the axis from the craft body to the
@@ -167,7 +115,7 @@ def sc2ned2(sc_vecs,ram_dirs,yaws,pitchs,rolls):
 
     return np.array(outs)
 
-def sc2ned3(sc_vecs,ram_dirs):
+def sc2ned(sc_vecs,ram_dirs):
     """
     Takes some space-craft based coordinates and the spacecraft's ram direction
     in North-East-Down components and converts another set of vectors written
@@ -213,6 +161,10 @@ def sc2ned3(sc_vecs,ram_dirs):
     return np.array(outs)
 
 def ned2sc(ned_vecs,ram_dirs):
+    """
+    Also need a way to compute SC coords from NED coords. This function is the
+    inverse of sc2ned3
+    """
     # Step 1. Compute Spacecraft X Y Z directions from the ram direction
     xdirs = [ram_dirs[i]/np.linalg.norm(ram_dirs[i]) for i in range(len(ram_dirs))]
 
@@ -234,20 +186,35 @@ def ned2sc(ned_vecs,ram_dirs):
     return np.array(outs)
    
 
-def cmp_igrf_magnetometer():
-
+def cmp_igrf_magnetometer(fname=sample_mgf_datafile, date_string="20160418"):
+    """
+    I use this to compare the IGRF model to the recorded magnetic field by the
+    MGF instrument onboard ePOP.
+    """
     # Set this to correspond to the mgf file at the top until mgf file selection is possible
-    date_string = "20160418"
+    
     datpath,datname = initialize_data()
-    fname,index_reversal = get_ottawa_data(date_string)
+    rrifname,index_reversal = get_ottawa_data(date_string)
     
     # Get RRI ephemeris data together so that we can remove effect of spacecraft direction
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(fname)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(rrifname)
     ephtimes = np.array([ round(e) for e in ephtimes]) # crucial for comparing mgf and rri times
     vs,dists = get_ramdirs(lons, lats, alts, ephtimes)
 
+    # Calculate IGRF at each ephemeris point
+    # import os
+    # import sys
+    # Redirect stdout so that IGRF can't print to the screen and spam me
+    # sys.stdout = open(os.devnull, "w") # turns out it doesnt work because IGRF stuff is in fortran/handled separately
+    B_igrf,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes) 
+    # sys.stdout = sys.__stdout__ # Reconnect stdout
+
+    # TMP change! Leaving both arrays of B field measurements unchanged and playing with spacepy on them
+    #B_igrf = ned2sc(np.array(B_igrf),vs)  #Converting from NED to SC!
+    B_igrf = np.array(B_igrf)
+ 
     # Acquire the MGF data
-    bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
+    bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(fname)
     B_mgf_intermediate = [ (bscx[i],bscy[i],bscz[i]) for i in range(len(bscx))]  
     print "Intermediate B_mgf first entry:\n",B_mgf_intermediate[0]
     print "Magnitude: ",np.linalg.norm(B_mgf_intermediate[0])
@@ -269,34 +236,20 @@ def cmp_igrf_magnetometer():
         print "Failed to find where RRI starts in MGF data." 
         print times_rri_iso
 
-    """
-    #TODO: change sc2ned so that we don't need this expensive loop    
-    bscN = []
-    bscE = []
-    bscD = []
-    for i in range(len(v)):
-        vp = v[i]
-        print str(i)+"th MGF times entry:\t",times_mgf[i+i_rristart]
-        print str(i)+"th RRI times entry:\t",times_rri[i]
-        bscn_tmp, bsce_tmp, bscd_tmp = sc2ned_deprecated(bscx[i+i_rristart],bscy[i+i_rristart],bscz[i+i_rristart],vp[0],vp[1],vp[2])
-        bscN.append(bscn_tmp)
-        bscE.append(bsce_tmp)
-        bscD.append(bscd_tmp)
-    """
+    B_mgf = np.array(B_mgf_intermediate)
 
-    # call the sc2ned3 function to transform to N-E-D coords for a set of vectors
-    B_mgf = np.array(B_mgf_intermediate)#sc2ned3(B_mgf_intermediate, vs)
-    # call a function I wrote already that calculates IGRF at each ephem point
-    B_igrf,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes) 
-    B_igrf = ned2sc(np.array(B_igrf),vs)  #Converting from NED to SC!
     return B_mgf,B_igrf
 
-def plot_comparison():
-    date_string = "20160418"
-    fname,index_reversal = get_ottawa_data(date_string)
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(fname)
+def plot_comparison(fname=sample_mgf_datafile, date_string="20160418"):
+    """
+    Function to plot the components of MGF and IGRF B fields against each other.
+    Note: Currently the IGRF might not be correctly converted so the components
+    won't be similar to each other at all.
+    """
+    rri_fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(rri_fname)
    
-    B_mgf,B_igrf = cmp_igrf_magnetometer()
+    B_mgf,B_igrf = cmp_igrf_magnetometer(fname,date_string)
     plt.plot(B_mgf[:,0],'b',label="MGF SC_X Component")
     plt.plot(B_igrf[:,0],'r',label="IGRF SC_X Component")
     plt.legend()
@@ -323,7 +276,7 @@ if __name__ == "__main__":
     B_mgf,B_igrf = cmp_igrf_magnetometer()
     print "MGF B field magnitude: ",np.linalg.norm(B_mgf[0]),B_mgf[0]
     print "IGRF B field magnitude: ",np.linalg.norm(B_igrf[0]),B_igrf[0]
-    plot_comparison()
+    #plot_comparison()
 
     """
     bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
