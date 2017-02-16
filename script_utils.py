@@ -68,12 +68,13 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
 
 
     """
+    from ottawa_plots import *
     if lons==None or lats==None or ephtimes==None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
             print "Need to provide at least one parameter to go on!"
             return -1
-        from ottawa_plots import *
         # TODO: Fix this!~!!!! We should have a general RRI file access method outside of 'get ottawa data'!!
+        # e.g. like paired with the MGF data access
         rri_fname,indx_rev = get_ottawa_data(date_string) 
         lons,lats,alts,ephtimes = get_rri_ephemeris(rri_fname)
         times=  ephems_to_datetime(ephtimes)
@@ -81,8 +82,8 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
     # A different font for the legend etc. might be nice
     #fig = plt.figure()
     font = {'fontname':'Computer Modern'}
-    m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=1.3*(max(lons) - min(lons))*1000*180, \
-                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',datetime=times[0])
+    m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=4.0*(max(lons) - min(lons))*1000*180, \
+                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='i',datetime=times[0])
     # (the 1000* factors are to replace 1000 in how usually these are written as "width=111e3*180")
 
     x,y = m(lons,lats,coords='geo')
@@ -93,14 +94,14 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
     length = times.__len__()
     tick_sep = length/(num_ticks - 1)
     alt_t = alts[0]
-    lon_t = geog_longs[0]
-    lat_t = geog_lats[0]
+    lon_t = lons[0]
+    lat_t = lats[0]
     dt_t  = times[0]
     my_xticks.append("Altitude:    "+str(alt_t)+"\nLatitude:    "+str(lat_t)+"\nLongitude:    "+str(lon_t)+"\nTime (UTC):    "+str(dt_t))
     for i in range(num_ticks-1):
         alt_t = alts[tick_sep*(i+1)]
-        lon_t = geog_longs[tick_sep*(i+1)]
-        lat_t = geog_lats[tick_sep*(i+1)]
+        lon_t = lons[tick_sep*(i+1)]
+        lat_t = lats[tick_sep*(i+1)]
         dt_t  = times[tick_sep*(i+1)]
         my_xticks.append(str(alt_t)+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(dt_t))
 

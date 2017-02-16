@@ -83,11 +83,9 @@ def satframe2ned(sc_vecs,ram_dirs,yaws,pitchs,rolls):
     # Step 1. Compute Spacecraft X Y Z directions from the ram direction
     xdirs = [ram_dirs[i]/np.linalg.norm(ram_dirs[i]) for i in range(len(ram_dirs))]
 
-    print "First normalized ram dir (x dir): ",xdirs[0] #reminder to self: check if its already normalized
+    print "First normalized ram dir (x dir): "+str(xdirs[0]) #reminder to self: check if its already normalized
     zdirs = np.array([(0.,0.,1.) for i in range(xdirs.__len__())]) #Just down
     ydirs = np.cross(zdirs,xdirs)
-
-
 
     # Step 2. Reverse rotate by amounts described in roll, pitch, yaw
     outs = []
