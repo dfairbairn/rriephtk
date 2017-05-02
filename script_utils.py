@@ -68,14 +68,14 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
 
 
     """
-    from ottawa_plots import *
+    import ottawa_plots
     if lons==None or lats==None or ephtimes==None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
             print "Need to provide at least one parameter to go on!"
             return -1
         # TODO: Fix this!~!!!! We should have a general RRI file access method outside of 'get ottawa data'!!
         # e.g. like paired with the MGF data access
-        rri_fname,indx_rev = get_ottawa_data(date_string) 
+        rri_fname,indx_rev = ottawa_plots.get_ottawa_data(date_string) 
         lons,lats,alts,ephtimes = get_rri_ephemeris(rri_fname)
         times=  ephems_to_datetime(ephtimes)
     

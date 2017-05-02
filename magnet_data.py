@@ -182,7 +182,32 @@ def ned2sc(ned_vecs,ram_dirs):
         out = np.dot(A,intermed)
         outs.append(out)
     return np.array(outs)
-   
+
+def get_igrf(lons,lats,alts,ephtimes):
+    """
+    Highly visible getter method for acquiring Earth's magnetic field values 
+    for the provided ndarray of longitudes/latitudes/altitudes/times. Uses the
+    IGRF model
+
+    """
+    from davitpy.models import igrf
+    from davitpy import utils
+    itype = 1 #Geodetic coordinates
+    stp = 1. 
+    ifl = 0
+    times = ephems_to_datetime(ephtimes)
+    B_igrf = np.zeros((len(times),3))
+    for i, time in enumerate(times):
+        date = utils.dateToDecYear(time)
+        lon = lons[i]
+        lat = lats[i]
+        alt = alts[i]
+        xlti, xltf, xltd = lat, lat, stp
+        xlni, xlnf, xlnd = lon, lon, stp 
+        # Call fortran subroutine
+        lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+        B_igrf[i,:] = np.array((bx[0],by[0],bz[0]))
+    return np.array(B_igrf)   
 
 def cmp_igrf_magnetometer(fname=sample_mgf_datafile, date_string="20160418"):
     """
