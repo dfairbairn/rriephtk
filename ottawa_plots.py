@@ -83,11 +83,27 @@ def get_bearing(lon1, lat1, lon2, lat2):
 
 def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
     """
-    
+    Takes two lon/lat/alt points and determines the elevation angle necessary
+    for getting from the first point to the second.
+
+    ***PARAMS***
+        lon1 [float]: longitude of point 1 (deg)
+        lat1 [float]: latitude of point 1 (deg)
+        alt1 [float]: altitude of opint 1 (km)
+        lon2 [float]: longitude of point 2 (deg)
+        lat2 [float]: latitude of point 2 (deg)
+        alt2 [float]: altitude of point 2 (km)
+
+    ***RETURNS***
+        elev_angle [float]: elevation angle 
+
+    *currently doesn't account for Earth's curvature. 
+ 
     """
     arcdist = haversine(lon1, lat1, lon2, lat2)
     delta_alt = alt2 - alt1
-    elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist))
+    # doesn't account for curvature of earth right now! #TODO: curvature 
+    elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist)) 
     return elev_angle
 
 def get_bvec(glon, glat, altitude, time):
