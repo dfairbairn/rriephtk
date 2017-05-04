@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import data_utils
 import magnet_data
-
+import ottawa_plots
 """ 
 Index of Refraction-related Code
 --------------------------------
@@ -227,4 +227,4 @@ if __name__=="__main__":
     nplus,nminus = appleton_hartree(X,Y,Z,theta)
 
     # Test txpass_to_indices 
-    angles_r,nplus,nminus = txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq,omega_p,omega_c)
+    angles_r,nplus,nminus = txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq10,omega_p,omega_c1)
