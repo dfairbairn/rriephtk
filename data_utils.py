@@ -178,6 +178,84 @@ def get_rri_ephemeris_full(dat_fname):
     roll = f['CASSIOPE Ephemeris']['Roll (deg)'].value
     return geog_longs,geog_lats,alts,ephem_times,mlon,mlat,mlts,pitch,yaw,roll
 
+def get_ottawa_data(date_string):
+    """
+    Function making it convenient in interactive mode or in scripts to select 
+    data (including the index/seconds into the pass at which the Faraday 
+    rotation reversal occurs).
+
+    Source: Inspection of Plots of Orientation Angle
+
+    """
+    if isinstance(date_string, type(None)): date_string="20160418"
+
+    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
+    if "20160418"==date_string:
+        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        index_reversal = 167 #for 18th # Stay
+    elif "20160419"==date_string:
+        #index_reversal = 178 #for 19th # Could go -1
+        index_reversal = 177
+        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+    elif "20160420"==date_string:
+        index_reversal = 213 #for 20th # Stay
+        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+    elif "20160421"==date_string:
+        #index_reversal = 205 #?? for 21st? # Could go up +5
+        index_reversal = 210
+        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+    elif "20160422"==date_string:
+        #index_reversal = 222 #for 22nd # Could go down -1 
+        index_reversal = 221
+        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+    else:
+        print("Invalid input date.")
+        return None    
+    return fname,index_reversal
+
+def get_ottawa_data2(date_string):
+    """
+    Does same as get_ottawa_data() only this time, it also includes the index
+    of the reversal in ellipticity angle (in addition to the orientation angle
+    flipping re: Faraday rotation).
+
+    Param: date_string - formatted like "20160422"
+
+    Returns: fname, rev_idx_orientation, rev_idx_ellipt
+
+    Source: Inspection of Plots.
+    (Glenn's inspection of ellipticity reversal, both of ours for orientation reversal)
+
+    """
+    if isinstance(date_string, type(None)): date_string="20160418"
+
+    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
+    if "20160418"==date_string:
+        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        orientation_rev = 168 #for 18th # Stay
+        ellipt_rev = 167
+    elif "20160419"==date_string:
+        orientation_rev = 177
+        ellipt_rev = 158
+        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+    elif "20160420"==date_string:
+        orientation_rev  = 213 #for 20th # Stay
+        ellipt_rev = 133 # ??? it also does something near 213 though
+        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+    elif "20160421"==date_string:
+        orientation_rev  = 210
+        ellipt_rev = 125
+        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+    elif "20160422"==date_string:
+        orientation_rev  = 221
+        ellipt_rev = 110 
+        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+    else:
+        print("Invalid input date.")
+        return None    
+    return fname,orientation_rev,ellipt_rev
+
+
 def open_errlog(data_path, rcode, date):
     """
     A function that can make opening errlog files a re-usable action?
@@ -257,6 +335,9 @@ def get_line_in_file(fl, srch_str):
         return -1
     return line_num
 
+
+
+
 def list_mgf_files(path='data/mgf/'):
     """ 
     Returns a list of the mgf files that can simply be indexed so as to easily
@@ -277,9 +358,7 @@ def exit_rri():
     sys.exit()
 
 """
-
 TESTING
-
 """
 if __name__ == "__main__":
     #data_path,dat_fname = initialize_data()

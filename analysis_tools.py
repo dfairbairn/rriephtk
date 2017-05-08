@@ -18,14 +18,20 @@ import matplotlib.pyplot as plt
 import data_utils
 import magnet_data
 import ottawa_plots
-""" 
-Index of Refraction-related Code
---------------------------------
-    The purpose of this code is the calculation of index of refraction vs
-    incidence angle for radio wave propagation direction compared to the
-    ionospheric plasma's orientation/local B field
 
-"""
+from script_utils import *
+
+OTTAWA_TX_LON = -75.552
+OTTAWA_TX_LAT = 45.403
+OTTAWA_TX_ELEV = 0.070 # 70m elevation in Ottawa - small compared to 300km satellite
+
+# ------------------------------------------------------------------------------
+#                       Index of Refraction-related Code
+#                       --------------------------------
+#    The purpose of this code is the calculation of index of refraction vs
+#    incidence angle for radio wave propagation direction compared to the
+#    ionospheric plasma's orientation/local B field
+# ------------------------------------------------------------------------------
 
 def basic_ionosphere_params(altitude=300.):
     """ Returns cyclotron frequency, debye length, and plasma frequency in 
@@ -178,15 +184,14 @@ def txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq,omega_p,omega_c
         *REMOVED* omega_c [float]: cyclotron frequency of peak plasma in region [Rad/s]
 
     ***RETURNS***
-        angles [float]: Aspect angles (computed by get_kb_angle()
+        angles [float]: Aspect angles 
         nplus [float]: positive Appleton-Hartree solution (O-mode index of ref)
         nminus [float]: negative AH solution (X-mode index of ref)
 
     """
     from ottawa_plots import get_kb_ottawa_angle
-    # TODO: generalize get_kb_ottawa_angle to get_kb_angle
-    # kvecs,bvecs,angles = get_kb_angle(lons,lats,alts,ephtimes,tx_lon,tx_lat)
-    bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
+    kvecs,bvecs,angles = get_kb_angle(lons,lats,alts,ephtimes,tx_lon=tx_lon,tx_lat=tx_lat)
+    #bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
     angles_rad = np.deg2rad(angles)
     #TODO: allow user to input nu_e to this?
     X,Y,Z = appleton_coeffs(omega_c,omega_p,freq,0.0) 
@@ -195,13 +200,436 @@ def txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq,omega_p,omega_c
     nminus = np.sqrt(nm_sq)
     return angles_rad, nplus, nminus 
 
+# ------------------------------------------------------------------------------
+#                         Telemetry and Ephemeris Functions
+#                         ---------------------------------
+#       Functions for calculating speeds, directions, and angles during an ePOP
+#       pass.
+# ------------------------------------------------------------------------------
+
+def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=0.07):
+    """
+    This function takes a satellite ephemeris point(s) as input, calculating
+    the straight-line k-vector from a transmitter in terms of North (x), 
+    East (y), Down (z) components.
+
+    Default values for the transmitter parameters are the coordinates of the
+    Ottawa transmitter from the 18-22 April 2016 RRI experiments.
+
+    ***PARAMS***
+        glon (float or float array): longitude(s) of final point(s) from transmitter
+        glat (float or float array): latitude(s) of final point(s) from transmitter
+        altitude (float or float array): altitude(s) of final point(s) from transmitter
+        [tx_lon] (float): longitude of transmitter [deg]
+        [tx_lat] (float): latitude of transmitter [deg]
+        [tx_alt] (float): altitude of transmitter [km]
+
+    ***RETURNS***
+        kv (float or float array): the vector(s) from transmitter to input point(s) 
+    """
+    are_vectors = True if (type(glon)==list or type(glon)==np.ndarray) else False
+
+    init_bearing,final_bearing = get_bearing(tx_lon, tx_lat, glon, glat) 
+
+    # In spherical coordinates, subtracting vectors doesn't get us the path
+    # from one point to another along the surface. To accomplish that, we use
+    # bearings and elevation angles.
+    
+    init_bearing,final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
+    if are_vectors:
+        txlons = np.ones(len(glon))*tx_lon
+        txlats = np.ones(len(glat))*tx_lat
+        txalts = np.ones(len(altitude))*tx_alt
+        elev_angle = get_elevation_angle(txlons, txlats, txalts, glon, glat, altitude)
+    else:
+        elev_angle = get_elevation_angle(tx_lon, tx_lat, tx_alt, glon, glat, altitude)
+
+    # for calculation of vector components, we need theta (the bearing in the
+    # N-E plane) at CASSIOPE, and phi, the angle-from-down (toward the N-E plane)
+    theta = final_bearing
+    phi = 90. + elev_angle
+    kx = np.sin(np.deg2rad(phi))*np.cos(np.deg2rad(theta))
+    ky = np.sin(np.deg2rad(phi))*np.sin(np.deg2rad(theta))
+    kz = np.cos(np.deg2rad(phi)) 
+
+    if are_vectors:
+        kv = np.array([ (kx[i],ky[i],kz[i]) for i in range(len(kx))])
+    else:
+        kv = np.array((kx,ky,kz))
+    return kv
+
+def get_bvec(glon, glat, altitude, time):
+    """
+    This function uses the IGRF model in DavitPy to calculate the magnetic
+    field vector at a given near-Earth location at a particular time.
+
+    Currently, the function just takes geographic longitude and latitude. It 
+    shouldn't be difficult to extend its functionality to accept magnetic
+    coordinates as well though.
+
+    **PARAMS**
+    glon (Float): Geographic longitude of point
+    glat (Float): Geographic latitude of point
+    alt (Float): Altitude from Earth's surface in km
+    time (Datetime): Time of interest (magnetic North's location varies year-to-year)
+
+
+    **With production of 'get_igrf' function which can handle array inputs, 
+        this function is now R E D U N D A N T**
+
+    """
+    from davitpy.models import igrf
+    from davitpy import utils
+    itype = 1 #Geodetic coordinates
+    date = utils.dateToDecYear(time) # decimal year
+    alt = altitude
+    stp = 1. #
+    # The IGRF function takes a grid of latitude and longitude points for which
+    # to calculate the field. We just want one point.
+    xlti, xltf, xltd = glat, glat, stp
+    xlni, xlnf, xlnd = glon, glon, stp 
+    ifl = 0 # Main field
+    # Call fortran subroutine
+    lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+    return np.array((bx[0],by[0],bz[0]))
+
+
+def get_igrf(lons,lats,alts,ephtimes):
+    """
+    This function uses the IGRF model in DavitPy to calculate the magnetic
+    field vector at given near-Earth locations at a particular times.
+
+    Currently, the function just takes geographic longitude and latitude. It 
+    shouldn't be difficult to extend its functionality to accept magnetic
+    coordinates as well though.
+
+    **PARAMS**
+    lons (Float ndarray): Geographic longitude of point
+    lats (Float ndarray): Geographic latitude of point
+    alts (Float ndarray): Altitude from Earth's surface in km
+    ephtimes (Float ndarray): Time of interest (truncated julian time MET)
+        (Time required because magnetic North's location varies year-to-year)
+
+    """
+    from davitpy.models import igrf
+    from davitpy import utils
+    itype = 1 #Geodetic coordinates
+    stp = 1. 
+    ifl = 0
+    times = ephems_to_datetime(ephtimes)
+    B_igrf = np.zeros((len(times),3))
+    for i, time in enumerate(times):
+        date = utils.dateToDecYear(time)
+        lon = lons[i]
+        lat = lats[i]
+        alt = alts[i]
+        xlti, xltf, xltd = lat, lat, stp
+        xlni, xlnf, xlnd = lon, lon, stp 
+        # Call fortran subroutine
+        lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,xlti,xltf,xltd,xlni,xlnf,xlnd)
+        B_igrf[i,:] = np.array((bx[0],by[0],bz[0]))
+    return np.array(B_igrf)   
+
+def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552, tx_lat=45.403, tx_alt=0.07):
+    """
+    This function finds where a ray from a transmitter toward a satellite intersects the 
+    peak plasma in the middle.
+
+    ***PARAMS***
+    Satellite ephemeris point(s): lon,lat,alt (deg, deg, km)
+    Transmitter location [optionally]: tx_lon, tx_lat, tx_alt (deg, deg, km)
+    Altitude of peak plasma density: plasma_alt (km.) 
+
+    ***RETURNS***
+    plasma_lon (float): longitude of plasma intersection(s)
+    plasma_lat (float): latitude of plasma intersection(s) 
+
+    """
+    are_vectors = True if (type(lon)==list or type(lon)==np.ndarray) else False
+    dist = haversine(lon,lat,tx_lon,tx_lat)
+
+    if dist > 2500.:
+        print("This approximation isn't valid for large distances")
+        return (-1,-1)
+    if plasma_alt > np.min(alt):
+        print("Input altitudes are too low for the plasma")
+        return (-1,-1)
+    if are_vectors:
+        tx_lon = tx_lon*np.ones(len(lon))
+        tx_lat = tx_lat*np.ones(len(lat))
+        tx_alt = tx_alt*np.ones(len(alt))
+    x = plasma_alt*dist/alt
+    bearing,__ = get_bearing(tx_lon, tx_lat, lon, lat) #only need initial bearing
+    delta_EW = x*np.sin(bearing) 
+    delta_lon = delta_EW*360./(2*np.pi*6371.*np.sin(lat)) # convert to longitude (deg)
+
+    delta_NS = x*np.cos(bearing) # small bearings=mostly northward-> mostly delta_lat
+    delta_lat = delta_NS*360./(2*np.pi*6371.)
+
+    plasma_lon = tx_lon + delta_lon
+    plasma_lat = tx_lat + delta_lat
+    return (plasma_lon, plasma_lat)
+
+
+def get_kb_angle(lons, lats, alts, ephtimes, tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
+    """
+    This function takes the ephemeris data as arguments and using the Ottawa
+    NRCAN transmitter, compares the k (line of sight) vector and the IGRF B 
+    field vector to determine the relative angle between the propagating radio
+    wave and the B-field in the ionospheric plasma.
+
+    The purpose of this is to get an idea of which mode the radio wave is 
+    propagating under (and if it's undergoing Faraday rotation, etc.)
+
+    *** PARAMS ***
+    lons (np.array of floats): ground-track geographic longitude
+    lats (np.array of floats): ground-track geographic latitude
+    alts (np.array of floats): altitude of CASSIOPE 
+    ephtimes (np.array of floats): in truncated JD (MET), seconds since era
+    [tx_lon] (np.array of floats): optional transmitter longitude
+    [tx_lat] (np.array of floats): optional transmitter latitude
+    [tx_alt] (np.array of floats): optional transmitter altitude
+
+    *** RETURNS ***
+    bvecs (np.array of float triplets): the IGRF B field at each ephemeris point
+    kvecs (np.array of float triplets): the tx-to-rx(sat) vector at each ephemeris point
+    angles (np.array of floats): the aspect angle (angle between respective bvecs and kvecs)
+    """
+    times = ephems_to_datetime(ephtimes)
+    angles = []
+    bvecs = []
+    kvecs = []
+    for i in range(lons.__len__()):
+        lon = lons[i]
+        lat = lats[i]
+        alt = alts[i]
+        time = times[i]
+        bvec = get_bvec(lon,lat,alt,time)
+        kvec = get_kvecs(lon,lat,alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
+        #print "B vector: " + str(bvec)
+        #print "K vector: " + str(kvec)
+        # Take the dot product, divide out the magnitude of the vectors
+        prod = np.dot(kvec,bvec)/(np.linalg.norm(bvec)*np.linalg.norm(kvec))
+        angle = np.rad2deg(np.arccos(prod)) 
+        angles.append(angle)
+        bvecs.append(bvec)
+        kvecs.append(kvec) 
+    return np.array(bvecs),np.array(kvecs),np.array(angles)
+
+def get_ramdirs(glon, glat, altitude):
+    """
+    Computes the velocity components of the satellite based on its ephemeris.
+    
+    *** PARAMS ***
+    glon (np.array of floats): the longitudes of the satellite (deg) 
+    glat (np.array of floats): the latitudes of the satellite (deg)
+    altitude (np.array of floats): the altitudes of the satellite (deg)
+    time ( doesnt even matter right now ) : The times (currently unused)
+
+    *** RETURNS ***
+    v (list of floats): velocity vector components (in km/s)
+    dists (list of floats): full distances traveled in 1 sec in km
+
+    *** TESTING? ***
+    calculated velocity values agreed with velocity values from other sources
+
+
+    """
+    v = []
+    dists = [] 
+    for i in range(glon.__len__()-1):
+        lon1 = glon[i]
+        lon2 = glon[i+1]
+        lat1 = glat[i]
+        lat2 = glat[i+1]
+        alt1 = altitude[i]
+        alt2 = altitude[i+1]
+        latdist = haversine(lon1,lat1,lon1,lat2) # if lon1,lat1 -- lon2,lat2 is the hypotenuse, this is the vertical
+        londist = haversine(lon1,lat1,lon2,lat1) # and this is the horizontal
+        altdist = alt2 - alt1
+        dist = np.linalg.norm((latdist,londist,altdist))
+        v.append((latdist,londist,altdist))
+        dists.append(dist)
+    return v,dists
+
+def get_closest_approach(lons, lats, alts, tx_lon=OTTAWA_TX_LON, tx_lat=OTTAWA_TX_LAT, tx_alt=OTTAWA_TX_ELEV):
+    """
+    Uses a haversine formula-based distance calculation to find the closest 
+    approach of a set of points describing a ground-track.
+
+    *** PARAMS *** 
+    glons (np.array of floats): longitudes (deg) of ground-track points
+    glats (np.array of floats): latitudes (deg) of ground-track points
+    alts (np.array of floats): altitudes (in km)
+
+    ** RETURNS **
+    index_shortest (integer): index of the lat/lon pair where the ottawa transmitter is closest
+    dists (float): the calculated distances
+    """
+
+    # *** FINDING THE CLOSEST APPROACH ***
+    # Using the Haversine formula (in a function in script_utils.py), the closest
+    # approach is determined by brute force.
+    dists = []
+    longdists = []
+    latdists = []
+    dist_shortest = sys.maxint #Initially set this very high
+    for i in range(np.size(lons)):
+        dist_before_alt = haversine(lons[i], lats[i], tx_lon, tx_lat)
+        delt_alt = alts[i] - tx_alt
+        dist = np.linalg.norm((dist_before_alt,delt_alt))
+        # Initially I took a quick and dirty approach to find the point of smallest
+        # Euclidean distance in terms of latitudes and longitudes.
+        #longdist = abs(geog_longs[i] - OTTAWA_TX_LON) # difference of longitudes
+        #latdist = abs(geog_lats[i] - OTTAWA_TX_LAT) # difference of latitudes
+        #dist = np.sqrt(longdist*longdist + latdist*latdist)  
+        dists.append(dist)
+        if dist < dist_shortest:
+            dist_shortest = dist
+            index_shortest = i
+    return index_shortest, dists 
+
+def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
+    """
+    Call this function to retrieve a list of the direction of the RRI dipole plane 
+    in N-E-down coordinates for the first n-1 ephemeris points provided, as well
+    as the relative angle between the K_los vector from the Ottawa transmitter
+    and the direction of the RRI dipole plane.
+
+    """
+    #TODO: VALIDATE THIS. SEEMS LIKE WE'RE OFF BY 90 DEGREES
+
+    # vs is a vector of ram directions in N, E, Down coordinates
+    vs,dists = get_ramdirs(lons,lats,alts)
+   
+    # kvecs will be k_LOS vectors in N, E, Down coordinates 
+    kvecs = []
+    for i in range(lons.__len__()):
+        kvec = get_kvecs(lons[i],lats[i],alts[i])
+        kvecs.append(kvec)
+
+    # Word of Gareth:
+    # x is ram direction, z is nadir direction, y is Z cross X.
+    xdirs = vs
+    zdirs = np.array([ (0,0,1) for i in range(xdirs.__len__())])
+    ydirs = np.cross(zdirs,xdirs)
+    
+    # yaw: rot around z, pitch: rot around y, roll: rot around x
+    # Assuming as seems to be confirmed in documentation that the Dipole is in the
+    # x-direction on CASSIOPE, and thus, in default position, towards the ram direction.
+    dipole_dirs = []
+    kdip_angles = []
+    for i in range(xdirs.__len__()):
+        yaw_rot = rotation_matrix(zdirs[i],np.deg2rad(yaw[i]))
+        pitch_rot = rotation_matrix(ydirs[i],np.deg2rad(pitch[i]))
+        roll_rot = rotation_matrix(xdirs[i],np.deg2rad(roll[i]))
+        initial_dipole_vec = xdirs[i]
+        intermed1 = np.dot(yaw_rot,initial_dipole_vec)
+        intermed2 = np.dot(pitch_rot,intermed1)
+        # After all the rotations, we have dip_dir
+        dip_dir = np.dot(roll_rot,intermed2)
+        dipole_dirs.append(dip_dir)
+        # Determine what the relative angle is between k_LOS and dip_dir
+        kdip_angle = np.arccos(np.dot(dip_dir,kvecs[i])/(np.linalg.norm(dip_dir)*np.linalg.norm(kvecs[i])))
+        kdip_angles.append(np.rad2deg(kdip_angle))
+    return dipole_dirs, kdip_angles    
+
+def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
+    """
+    Takes two lon/lat/alt points and determines the elevation angle necessary
+    for getting from the first point to the second.
+
+    ***PARAMS***
+        lon1 [float]: longitude of point 1 (deg)
+        lat1 [float]: latitude of point 1 (deg)
+        alt1 [float]: altitude of opint 1 (km)
+        lon2 [float]: longitude of point 2 (deg)
+        lat2 [float]: latitude of point 2 (deg)
+        alt2 [float]: altitude of point 2 (km)
+
+    ***RETURNS***
+        elev_angle [float]: elevation angle 
+
+    *currently doesn't account for Earth's curvature. 
+ 
+    """
+    arcdist = haversine(lon1, lat1, lon2, lat2)
+    delta_alt = alt2 - alt1
+    # doesn't account for curvature of earth! Future goal:
+    if (haversine(lon1,lat1,lon2,lat2) > 2500.).any():
+        print("**This approximation won't work for points this far apart**")
+        return -1.
+    elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist)) 
+    return elev_angle
+def get_bearing(lon1, lat1, lon2, lat2):
+    """
+    Gives the bearing clockwise from north in degrees from point 1 to point2,
+    at point 1 (init_bearing) and at point 2 (final_bearing)
+    """
+    atan2_argx = np.sin(np.deg2rad(lon2 - lon1))*np.cos(np.deg2rad(lat2))
+    atan2_argy1 = np.cos(np.deg2rad(lat1))*np.sin(np.deg2rad(lat2))
+    atan2_argy2 = np.sin(np.deg2rad(lat1))*np.cos(np.deg2rad(lat2))*np.cos(np.deg2rad(lon2 - lon1))
+    init_bearing = np.rad2deg(np.arctan2(atan2_argx, atan2_argy1 - atan2_argy2))
+
+    # The FINAL bearing is just the bearing from final point to the initial 
+    # point, reversed by adding 180 modulo 360
+    atan2_argx = np.sin(np.deg2rad(lon1 - lon2))*np.cos(np.deg2rad(lat1))
+    atan2_argy1 = np.cos(np.deg2rad(lat2))*np.sin(np.deg2rad(lat1))
+    atan2_argy2 = np.sin(np.deg2rad(lat2))*np.cos(np.deg2rad(lat1))*np.cos(np.deg2rad(lon1 - lon2))
+    rev_bearing = np.rad2deg(np.arctan2(atan2_argx, atan2_argy1 - atan2_argy2))
+    final_bearing = (rev_bearing + 180.) % 360.
+    return init_bearing,final_bearing
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    from math import radians
+    # convert decimal degrees to radians 
+    if type(lon1)==list or type(lon1)==np.ndarray:
+        lon1 = np.deg2rad(lon1)
+        lat1 = np.deg2rad(lat1)
+        lon2 = np.deg2rad(lon2)
+        lat2 = np.deg2rad(lat2)
+    else:
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
+
+def rotation_matrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    theta = np.asarray(theta)
+    axis = axis/math.sqrt(np.dot(axis, axis))
+    a = math.cos(theta/2.0)
+    b, c, d = -axis*math.sin(theta/2.0)
+    aa, bb, cc, dd = a*a, b*b, c*c, d*d
+    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
+    return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
+                     [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
+                     [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]]) 
+
+
+
+
+
 if __name__=="__main__":
 
     """ TESTING INDEX OF REFRACTION-RELATED FUNCTIONS """
     freq10 = 1.0422E7   #[Hz]             
     freq12 = 1.2500E7   #[Hz]
-    tx_lon = -75.552    #[Deg]
-    tx_lat = 45.403     #[Deg]
+    txlon = -75.552    #[Deg]
+    txlat = 45.403     #[Deg]
  
     filename, __ = ottawa_plots.get_ottawa_data("20160421")
     omega_p = 2*np.pi*5.975E6 # [rad/s]
@@ -210,21 +638,103 @@ if __name__=="__main__":
     lons,lats,alts,ephtimes = data_utils.get_rri_ephemeris(filename)
     b_igrf = magnet_data.get_igrf(lons,lats,alts,ephtimes)
 
-    # Test improved cyclotron frequency function
-    omega_c1 = improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=280.)
+    # Test regular and improved cyclotron frequency functions
+    '''
+    I'm primarily checking that the functions don't break in general, but the
+    cases below check particular numbers in order to detect whether the data or
+    the processing unexpectedly changes after some updates to things.
+    ''' 
 
-    # Test regular cyclotron frequency function
+    omega_c1 = improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=280.)
     omega_c2 = cyclotron_freq(b_igrf)
+    if np.round(np.log10(omega_c2)) != 7. or np.round(np.log10(omega_c1)) != 7.:
+        print("Error with cyclotron frequency calculations")
 
     # Test basic_ionosphere_params
     basic_omega_c, basic_omega_p, basic_l_d = basic_ionosphere_params(altitude=300.)
+    if np.round(np.log10(basic_omega_p),1)!=7.8 or np.round(np.log10(basic_omega_c),1) != 7.0:
+        print("Error with basic ionosphere params")
 
     # Test appleton_coeffs
-    X,Y,Z = appleton_coeffs(omega_c1, omega_p, freq10, 0.)    
+    # X should be about 0.25-0.3, Y about 0.1, Z about 0
+    X,Y,Z = appleton_coeffs(omega_c1, omega_p, freq10, 0.) 
+    if np.round(X,1) != 0.33 or np.round(Y,2) != 0.13 or np.round(Z,2) != 0.:
+        print("Error with appleton_coeffs()")
 
     # Test appleton_hartree
     theta = np.array( range(315) )/100.
-    nplus,nminus = appleton_hartree(X,Y,Z,theta)
+    nplus1,nminus1 = appleton_hartree(X,Y,Z,theta)
+    if np.round(abs(nplus1[0]),4) != 0.8416 or np.round(abs(nminus1[0]),4) != 0.7896:
+        print("Error with appleton_hartree()")
 
     # Test txpass_to_indices 
-    angles_r,nplus,nminus = txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq10,omega_p,omega_c1)
+    angles_r,nplus2,nminus2 = txpass_to_indices(lons,lats,alts,ephtimes,txlon,txlat,freq10,omega_p,omega_c1)
+    if np.round(np.mean(angles_r),4) != 2.3198 or np.round(abs(nplus2[0]),4) != 0.9138:
+        print("Error with txpass_to_indices()")
+
+
+    """ TESTING DIRECTIONAL/EPHEMERIS-RELATED FUNCTIONS"""
+
+    # Test get_bearing()
+    # Correctness:
+    tst_bearing1,__ = get_bearing(-106.,52.,-96.,52.)
+    tst_bearing2,__ = get_bearing(-106.,52.,-106.,42.)
+    if np.round(tst_bearing1,1) != 86.1 or np.round(tst_bearing2,1) != 180.:  
+        print("Error calculating bearings")
+    # Parallelization:
+    a = np.array([100.,100.,100.])
+    b = np.array([45.,45.,45.])
+    c = np.array([35.,55.,-45.])
+    bearings_i,bearings_f = get_bearing(a,b,a,c)
+    if (bearings_i != [180.,0.,180.]).any(): # if any entries incorrect...
+        print("Error with parallelized bearings calculation")
+
+    # Test haversine:
+    hav = haversine(50,50,60,60)
+    if int(hav)!=1278: #corroborated with other calculators
+        print("Error with haversine()")
+    # check parallelization
+    havs = haversine(a,b,a,c)
+   
+    # Test elevation_angle: 
+    elev_a = get_elevation_angle(-106.,52.,0.,-96.,52.,300.)
+    if np.round(elev_a,2) != 23.68:
+        print("Error with get_elevation_angle()")
+
+    # Test rotation_matrix:
+    # For now I'm pretty confident from previous testing, let this be a #TODO
+
+    # Test get_kvecs:
+    kvs = get_kvecs(lons,lats,alts) # From Ottawa by default. 
+    # I've already checked the validity of the April 21st data. This test relies on it:
+    if (np.round((np.mean(kvs[:,0]),np.mean(kvs[:,1]),np.mean(kvs[:,2])),2) != [0.09,0.05,-0.65]).any():
+        print("Error with get_kvecs()")
+
+    # Test get_igrf(): already called get_igrf earlier in this if __name__ block
+    #b_igrf = get_igrf(lons,lats,alts,ephtimes)
+    if (np.round(b_igrf[0]) != np.array([17858.,-3148.,39417.])).any():
+        print("Error with get_igrf()")
+
+    # Test get_plasma_intersection():
+    plasma_lon,plasma_lat = get_plasma_intersection(-75.552,48.403,370.) #directly north
+    if plasma_lon!=-75.552 or np.round(plasma_lat,1)!=47.8:
+        print("Error with get_plasma_intersection")
+
+    # Test get_kb_angle():
+    # Already tested successfully earlier by doing tx_pass_indices
+    #bvs,kvs,angles_r = get_kb_angle
+
+
+    # Test get_kdip_angles():
+    #TODO: test and *validate*!
+    fname,index_reversal = get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
+    dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
+ 
+    # Test get_ramdirs():
+    vs,dists = get_ramdirs(lons,lats,alts) 
+
+    # Test get_closest_approach:
+    index_closest = get_closest_approach(lons,lats,alts)
+
+    print("Tests complete!")
