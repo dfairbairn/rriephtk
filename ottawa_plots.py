@@ -41,6 +41,9 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     """
     #TODO: Parallelize/accept vector inputs
 
+    are_vectors = True if (type(glon)==list or type(glon)==np.ndarray) else False
+    
+
     # The specific coordinates of the NRCAN geomagnetic    
     OTTAWA_TX_LON = -75.552 
     OTTAWA_TX_LAT = 45.403
@@ -59,7 +62,12 @@ def get_ottawa_kvec(glon, glat, altitude, time):
     kx = np.sin(np.deg2rad(phi))*np.cos(np.deg2rad(theta))
     ky = np.sin(np.deg2rad(phi))*np.sin(np.deg2rad(theta))
     kz = np.cos(np.deg2rad(phi)) 
-    return np.array((kx,ky,kz))
+ 
+    if are_vectors:
+        kv = np.array([ (kx[i],ky[i],kz[i]) for i in range(len(kx))])
+    else:
+        kv = np.array((kx,ky,kz))
+    return kv
 
 def get_bearing(lon1, lat1, lon2, lat2):
     """

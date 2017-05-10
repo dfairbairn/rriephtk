@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import datetime as dt #A wrapper class for 'file' which tracks line numbers. 
+
+from davitpy.utils import plotUtils
 def ephems_to_datetime(ephem_times):
     """
     This function allows a whole array of ephemeris times to be conveniently
@@ -23,7 +25,11 @@ def ephems_to_datetime(ephem_times):
     ** RETURNS **
         times (list): list of datetime objects
     """
-    assert isinstance(ephem_times, np.ndarray), "Not an array"
+    if type(ephem_times)==list:
+        ephem_times = np.array(ephem_times)
+    if type(ephem_times)!=np.ndarray:
+        print("Not an array")
+        return None
  
     # i) Check the seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
     t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s", "-u"])
@@ -68,16 +74,15 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
 
 
     """
-    import ottawa_plots
+    
     if lons==None or lats==None or ephtimes==None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
             print "Need to provide at least one parameter to go on!"
             return -1
-        # TODO: Fix this!~!!!! We should have a general RRI file access method outside of 'get ottawa data'!!
         # e.g. like paired with the MGF data access
-        rri_fname,indx_rev = ottawa_plots.get_ottawa_data(date_string) 
+        rri_fname,indx_rev = data_utils.get_ottawa_data(date_string) 
         lons,lats,alts,ephtimes = get_rri_ephemeris(rri_fname)
-        times=  ephems_to_datetime(ephtimes)
+    times=  ephems_to_datetime(ephtimes)
     
     # A different font for the legend etc. might be nice
     #fig = plt.figure()

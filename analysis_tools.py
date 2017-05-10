@@ -12,12 +12,12 @@ author: David Fairbairn
 date: May 2017
 
 """
-
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
+
 import data_utils
 import magnet_data
-import ottawa_plots
 
 from script_utils import *
 
@@ -72,6 +72,16 @@ def basic_ionosphere_params(altitude=300.):
     omega_c  = e*B/(me)            #[Hz]   Cyclotron frequency
 
     return omega_c,omega_p,l_d
+
+def plasma_freq(n_e):
+    """
+    Given an electron density parameter (n_e), compute the plasma frequency.
+    """
+    eps0 = 8.8542E-12           #[A*s/(V*m)]    Permittivity
+    e    = 1.602E-19            #[C]            Elementary charge
+    me   = 9.109E-31            #[kg]           Electron rest mass
+    omega_p  = ((e**2)*n_e/(eps0*me))**0.5  #[Hz]   Plasma frequency
+    return omega_p
 
 def cyclotron_freq(B):
     """
@@ -189,7 +199,6 @@ def txpass_to_indices(lons,lats,alts,ephtimes,tx_lon,tx_lat,freq,omega_p,omega_c
         nminus [float]: negative AH solution (X-mode index of ref)
 
     """
-    from ottawa_plots import get_kb_ottawa_angle
     kvecs,bvecs,angles = get_kb_angle(lons,lats,alts,ephtimes,tx_lon=tx_lon,tx_lat=tx_lat)
     #bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
     angles_rad = np.deg2rad(angles)
@@ -370,6 +379,44 @@ def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552, tx_lat=4
     plasma_lat = tx_lat + delta_lat
     return (plasma_lon, plasma_lat)
 
+def do_the_thing(lons,lats,alts,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+    """
+
+    """
+    TECs = []
+    meanns=[]
+    for i,alt in enumerate(alts):
+        lon = lons[i]
+        lat = lats[i]
+        
+        tec,ns = phase_ray_trace(lon,lat,alt,densities_arr,densities_lats,tx_lon,tx_lat,tx_alt)
+        TECs.append(tec)
+        meanns.append(ns)#np.mean(ns))
+    return TECs,meanns
+
+def phase_ray_trace(lon,lat,alt,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+    """
+
+    """
+    print("Tracing from transmitter at (75W,45N,70m Alt) to ({0},{1},{2}km elevation)".format(lon,lat,alt)) 
+
+    ang_deg = get_elevation_angle(tx_lon,tx_lat,tx_alt,lon,lat,alt)
+    # path length through plasma voxel is r = y/sin(theta), y = 1E3 (1km)
+    dist = 1E3/np.sin(np.deg2rad(ang_deg)) 
+    #print('Ray trace angle: ',ang_deg)
+    #print('Ray distance per 1km altitude gain: ',dist)
+
+    # Plasma density profiles start at 60 km and go up to 559 km
+    TEC = 0. 
+    ns=[]
+    for pl_alt in np.arange(60,alt): # Go from 60 km altitude up to satellite altitude
+        plon,plat = get_plasma_intersection(lon,lat,alt,plasma_alt=pl_alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
+        #print("(plon,plat,palt): ",plon,plat,pl_alt)
+        n = data_utils.get_density(plon, plat, pl_alt, densities_arr, densities_lats)
+        ns.append(n)
+        #print(n)
+        TEC += dist*n
+    return TEC,(plon,plat)#ns
 
 def get_kb_angle(lons, lats, alts, ephtimes, tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
     """
@@ -561,6 +608,7 @@ def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
         return -1.
     elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist)) 
     return elev_angle
+
 def get_bearing(lon1, lat1, lon2, lat2):
     """
     Gives the bearing clockwise from north in degrees from point 1 to point2,
@@ -610,14 +658,15 @@ def rotation_matrix(axis, theta):
     """
     axis = np.asarray(axis)
     theta = np.asarray(theta)
-    axis = axis/math.sqrt(np.dot(axis, axis))
-    a = math.cos(theta/2.0)
-    b, c, d = -axis*math.sin(theta/2.0)
+    axis = axis/np.sqrt(np.dot(axis, axis))
+    a = np.cos(theta/2.0)
+    b, c, d = -axis*np.sin(theta/2.0)
     aa, bb, cc, dd = a*a, b*b, c*c, d*d
     bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
     return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
                      [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
                      [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]]) 
+
 
 
 
@@ -630,8 +679,9 @@ if __name__=="__main__":
     freq12 = 1.2500E7   #[Hz]
     txlon = -75.552    #[Deg]
     txlat = 45.403     #[Deg]
- 
-    filename, __ = ottawa_plots.get_ottawa_data("20160421")
+
+    date_string="20160421" 
+    filename, __ = data_utils.get_ottawa_data(date_string)
     omega_p = 2*np.pi*5.975E6 # [rad/s]
     fof2_alt = 260. # [km] 
     
@@ -644,11 +694,12 @@ if __name__=="__main__":
     cases below check particular numbers in order to detect whether the data or
     the processing unexpectedly changes after some updates to things.
     ''' 
-
     omega_c1 = improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=280.)
     omega_c2 = cyclotron_freq(b_igrf)
     if np.round(np.log10(omega_c2)) != 7. or np.round(np.log10(omega_c1)) != 7.:
         print("Error with cyclotron frequency calculations")
+
+    # Test plasma_freq(n_e) #TODO:
 
     # Test basic_ionosphere_params
     basic_omega_c, basic_omega_p, basic_l_d = basic_ionosphere_params(altitude=300.)
@@ -671,6 +722,7 @@ if __name__=="__main__":
     angles_r,nplus2,nminus2 = txpass_to_indices(lons,lats,alts,ephtimes,txlon,txlat,freq10,omega_p,omega_c1)
     if np.round(np.mean(angles_r),4) != 2.3198 or np.round(abs(nplus2[0]),4) != 0.9138:
         print("Error with txpass_to_indices()")
+
 
 
     """ TESTING DIRECTIONAL/EPHEMERIS-RELATED FUNCTIONS"""
@@ -724,17 +776,37 @@ if __name__=="__main__":
     # Already tested successfully earlier by doing tx_pass_indices
     #bvs,kvs,angles_r = get_kb_angle
 
-
     # Test get_kdip_angles():
     #TODO: test and *validate*!
-    fname,index_reversal = get_ottawa_data(date_string)
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = get_rri_ephemeris_full(fname)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = data_utils.get_rri_ephemeris_full(filename)
     dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll)
  
     # Test get_ramdirs():
     vs,dists = get_ramdirs(lons,lats,alts) 
+    if (np.round(vs[0][0],3)!=7.442) or (np.round(dists[-1],3)!=7.419):
+        print("Error with get_ramdirs")
 
     # Test get_closest_approach:
-    index_closest = get_closest_approach(lons,lats,alts)
+    index_closest,dists = get_closest_approach(lons,lats,alts)
+    if (index_closest!=103) or np.round(dists[-1],2)!=1049.97:
+        print("Error with get_closest_approach")
+
+
+    # Test phase_ray_trace
+    datarr,datlats = data_utils.load_density_profile('./data/20160418-densities.txt')
+    tec,ns = phase_ray_trace(lons[0],lats[0],alts[0],datarr,datlats)
+    if np.round(np.log10(tec),3)!=17.152: # validated calculations by noting similarity of numbers with Rob's
+        print("Error with phase_ray_trace") 
+
+    Roblons,Roblats,Robalts = data_utils.load_rob_ephemeris('./data/satcoords_20160418.txt')
+    lons18,lats18,alts18,ephtimes18 = data_utils.get_rri_ephemeris(data_utils.get_ottawa_data('20160418')[0])    
+
+    plons=[]
+    plats=[]
+    for plalt in plalts:                                                   
+        plon,plat = get_plasma_intersection(lons18[0],lats18[0],alts18[0],plasma_alt=plalt)
+        plons.append(plon)
+        plats.append(plat)
+
 
     print("Tests complete!")

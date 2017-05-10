@@ -255,6 +255,61 @@ def get_ottawa_data2(date_string):
         return None    
     return fname,orientation_rev,ellipt_rev
 
+def load_density_profile(fname):
+    """
+    Function for loading data from an electron densities data file.    
+    """
+    import pandas as pd
+    dat = pd.read_csv(fname)
+    datarr2 = ([(d[0].split()) for d in dat.as_matrix()])
+    datarr = []
+    datlats = []
+    for i, drow in enumerate(datarr2):
+        datarr2[i].pop(0)
+        datlats.append(float(datarr2[i].pop(0)))
+        datarr.append(np.array([ float(d) for d in drow ]))
+    return datarr, datlats 
+
+def load_rob_ephemeris(fname):
+    """
+    Use to grab the ephemeris points in one of Rob's simulation data files
+    """
+    f = open(fname)
+    Roblons = []
+    Roblats = []
+    Robalts = []
+    for line in f:
+        l = line.split()
+        try:
+            Roblons.append(float(l[1]))
+            Roblats.append(float(l[2]))
+            Robalts.append(float(l[3]))
+        except:
+            continue    
+    return Roblons,Roblats,Robalts
+
+
+def get_density(lon, lat, alt, datarr, datlats):
+    """
+    Function for taking array of electron densities and returning the right one
+    for a particular location/altitude.
+
+    **These electron densities are in terms of m^3**
+
+    """
+    if lat > np.max(datlats) or lat < np.min(datlats):
+        #print("No data for that latitude - using closest latitude...")
+        lat = np.max(datlats) if lat > np.max(datlats) else np.min(datlats)
+    if alt > 559 or alt < 60:
+        print("No data for that altitude")
+        return -1
+    for i,dlat in enumerate(datlats):
+        alt_index = int(alt - 60)
+        if lat < dlat:
+            return datarr[i-1][alt_index]
+        elif lat == dlat:        
+            return datarr[i][alt_index]
+    return 0
 
 def open_errlog(data_path, rcode, date):
     """
