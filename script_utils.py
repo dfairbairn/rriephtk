@@ -69,15 +69,15 @@ def ephem_to_datetime(ephem):
     dtime = dt.datetime.utcfromtimestamp(t_off + float(ephem))    
     return dtime
 
-def plot_sat_ephemeris(date_string=None,lons=None,lats=None,ephtimes=None):
+def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=None):
     """
 
 
     """
     
-    if lons==None or lats==None or ephtimes==None:
+    if lons==None or lats==None or alts==None or ephtimes==None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
-            print "Need to provide at least one parameter to go on!"
+            print "Need to provide either lons/lats/alts/ephtimes or date_string!"
             return -1
         # e.g. like paired with the MGF data access
         rri_fname,indx_rev = data_utils.get_ottawa_data(date_string) 

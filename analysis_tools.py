@@ -235,6 +235,8 @@ def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=0.07):
 
     ***RETURNS***
         kv (float or float array): the vector(s) from transmitter to input point(s) 
+
+    WORKS WITH SINGLE POINTS AND NDARRAYS/LISTS
     """
     are_vectors = True if (type(glon)==list or type(glon)==np.ndarray) else False
 
@@ -355,47 +357,77 @@ def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552, tx_lat=4
 
     """
     are_vectors = True if (type(lon)==list or type(lon)==np.ndarray) else False
+    #lon = (lon + 360.) % 360.
+    #tx_lon = (tx_lon + 360.) % 360.
     dist = haversine(lon,lat,tx_lon,tx_lat)
-
     if dist > 2500.:
         print("This approximation isn't valid for large distances")
+        print("dist: ",dist)
         return (-1,-1)
     if plasma_alt > np.min(alt):
         print("Input altitudes are too low for the plasma")
+        print('plasma_alt: ',plasma_alt)
+        print('alt: ',alt) 
         return (-1,-1)
     if are_vectors:
         tx_lon = tx_lon*np.ones(len(lon))
         tx_lat = tx_lat*np.ones(len(lat))
         tx_alt = tx_alt*np.ones(len(alt))
-    x = plasma_alt*dist/alt
+    x = (plasma_alt/alt)*dist
+    print ('x, dist: ',x,dist)
     bearing,__ = get_bearing(tx_lon, tx_lat, lon, lat) #only need initial bearing
-    delta_EW = x*np.sin(bearing) 
-    delta_lon = delta_EW*360./(2*np.pi*6371.*np.sin(lat)) # convert to longitude (deg)
+    print ('bearing: ',bearing)
+    delta_EW = x*np.sin(np.deg2rad(bearing)) 
+    #delta_lon = delta_EW*360./(2*np.pi*6371.*np.sin(lat)) # convert to longitude (deg)
+    delta_lon = delta_EW/(6371.*np.sin(lat)) # convert to longitude (deg)
 
-    delta_NS = x*np.cos(bearing) # small bearings=mostly northward-> mostly delta_lat
-    delta_lat = delta_NS*360./(2*np.pi*6371.)
+    delta_NS = x*np.cos(np.deg2rad(bearing)) # small bearings=mostly northward-> mostly delta_lat
+    #delta_lat = delta_NS*360./(2*np.pi*6371.)
+    delta_lat = delta_NS/(6371.)
+
+    print('delta_lon,delta_lat : ',delta_lon, delta_lat)
 
     plasma_lon = tx_lon + delta_lon
     plasma_lat = tx_lat + delta_lat
+    print('plasma_lon,plasma_lat: ',plasma_lon,plasma_lat)
     return (plasma_lon, plasma_lat)
 
-def do_the_thing(lons,lats,alts,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+def do_the_thing(lons,lats,alts,ephtimes,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
     """
+    Performs the same 'ray trace' for each of a number of ephemeris points, collecting each point's
+    result in a list.
+
 
     """
     TECs = []
-    meanns=[]
+    mean_bcs = [] 
     for i,alt in enumerate(alts):
         lon = lons[i]
         lat = lats[i]
-        
-        tec,ns = phase_ray_trace(lon,lat,alt,densities_arr,densities_lats,tx_lon,tx_lat,tx_alt)
+        ephtime = ephtimes[i] 
+        tec,bcs = phase_ray_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon,tx_lat,tx_alt)
         TECs.append(tec)
-        meanns.append(ns)#np.mean(ns))
-    return TECs,meanns
+        mean_bcs.append(np.mean(bcs))
+    return TECs,mean_bcs
 
-def phase_ray_trace(lon,lat,alt,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+def phase_ray_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
     """
+    Does a 'ray trace' calculation, performing a line integral of the electron content
+    along the ray as well as the magnetic field along the k-vector (B cos(theta) for 
+    aspect angle theta)
+
+    ***PARAMS***
+        lon
+        lat
+        alt
+        densities_arr: 
+        densities_lats: list of latitudes describing the 
+        [tx_lon]:
+        [tx_lat]:
+        [tx_alt]:
+
+    ***RETURNS***
+        TEC
 
     """
     print("Tracing from transmitter at (75W,45N,70m Alt) to ({0},{1},{2}km elevation)".format(lon,lat,alt)) 
@@ -405,18 +437,23 @@ def phase_ray_trace(lon,lat,alt,densities_arr,densities_lats,tx_lon=-75.552,tx_l
     dist = 1E3/np.sin(np.deg2rad(ang_deg)) 
     #print('Ray trace angle: ',ang_deg)
     #print('Ray distance per 1km altitude gain: ',dist)
+    kv = get_kvecs(lon,lat,alt)
+    time = ephem_to_datetime(ephtime)
 
     # Plasma density profiles start at 60 km and go up to 559 km
     TEC = 0. 
-    ns=[]
+    bcs = [] # B_cos_theta = bcs
     for pl_alt in np.arange(60,alt): # Go from 60 km altitude up to satellite altitude
         plon,plat = get_plasma_intersection(lon,lat,alt,plasma_alt=pl_alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
         #print("(plon,plat,palt): ",plon,plat,pl_alt)
         n = data_utils.get_density(plon, plat, pl_alt, densities_arr, densities_lats)
-        ns.append(n)
-        #print(n)
         TEC += dist*n
-    return TEC,(plon,plat)#ns
+
+        bv = get_bvec(plon,plat,pl_alt,time)
+        prod = np.dot(bv,kv)/(np.linalg.norm(bv)*np.linalg.norm(kv)) 
+        ang = np.arccos(prod)
+        bcs.append(np.linalg.norm(bv)*np.cos(ang))
+    return TEC,bcs
 
 def get_kb_angle(lons, lats, alts, ephtimes, tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
     """
@@ -442,12 +479,22 @@ def get_kb_angle(lons, lats, alts, ephtimes, tx_lon=-75.552, tx_lat=45.503, tx_a
     kvecs (np.array of float triplets): the tx-to-rx(sat) vector at each ephemeris point
     angles (np.array of floats): the aspect angle (angle between respective bvecs and kvecs)
     """
+    # Extension to allow single aspect angles to be calculated
+    import numbers
+    if isinstance(lons, numbers.Number):
+        #print("Inputting single query")
+        kv = get_kvecs(lons,lats,alts)
+        bv = get_bvec(lons,lats,alts,ephem_to_datetime(ephtimes))
+        prod = np.dot(kv,bv)/(np.linalg.norm(bv)*np.linalg.norm(kv))
+        ang = np.rad2deg(np.arccos(prod))
+        return bv,kv,ang 
+
+    # Otherwise, for vector inputs:
     times = ephems_to_datetime(ephtimes)
     angles = []
     bvecs = []
     kvecs = []
-    for i in range(lons.__len__()):
-        lon = lons[i]
+    for i,lon in enumerate(lons):
         lat = lats[i]
         alt = alts[i]
         time = times[i]
@@ -602,10 +649,15 @@ def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
     """
     arcdist = haversine(lon1, lat1, lon2, lat2)
     delta_alt = alt2 - alt1
-    # doesn't account for curvature of earth! Future goal:
-    if (haversine(lon1,lat1,lon2,lat2) > 2500.).any():
+    # doesn't account for curvature of earth! Future goal
+    if type(arcdist)==list or type(arcdist)==np.ndarray:
+        if (arcdist > 2500.).any():
+            print("**This approximation won't work for points this far apart**")
+            return -1.
+    elif arcdist > 2500.:
         print("**This approximation won't work for points this far apart**")
         return -1.
+
     elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist)) 
     return elev_angle
 
@@ -666,10 +718,6 @@ def rotation_matrix(axis, theta):
     return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
                      [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
                      [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]]) 
-
-
-
-
 
 
 if __name__=="__main__":
@@ -769,7 +817,7 @@ if __name__=="__main__":
 
     # Test get_plasma_intersection():
     plasma_lon,plasma_lat = get_plasma_intersection(-75.552,48.403,370.) #directly north
-    if plasma_lon!=-75.552 or np.round(plasma_lat,1)!=47.8:
+    if np.round(plasma_lon,1)!=284.4 or np.round(plasma_lat,1)!=47.8:
         print("Error with get_plasma_intersection")
 
     # Test get_kb_angle():
@@ -794,8 +842,8 @@ if __name__=="__main__":
 
     # Test phase_ray_trace
     datarr,datlats = data_utils.load_density_profile('./data/20160418-densities.txt')
-    tec,ns = phase_ray_trace(lons[0],lats[0],alts[0],datarr,datlats)
-    if np.round(np.log10(tec),3)!=17.152: # validated calculations by noting similarity of numbers with Rob's
+    tec,bcs = phase_ray_trace(lons[0],lats[0],alts[0],ephtimes[0],datarr,datlats)
+    if np.round(np.log10(tec),3)!=17.198: # validated calculations by noting similarity of numbers with Rob's
         print("Error with phase_ray_trace") 
 
     Roblons,Roblats,Robalts = data_utils.load_rob_ephemeris('./data/satcoords_20160418.txt')
@@ -803,8 +851,13 @@ if __name__=="__main__":
 
     plons=[]
     plats=[]
-    for plalt in plalts:                                                   
-        plon,plat = get_plasma_intersection(lons18[0],lats18[0],alts18[0],plasma_alt=plalt)
+    i = 19 
+    lon18 = lons18[i]
+    lat18 = lats18[i]
+    alt18 = alts18[i]
+    ephtime18 = ephtimes18[i]
+    for plalt in np.arange(60.,alt18):                                                   
+        plon,plat = get_plasma_intersection(lon18,lat18,alt18,plasma_alt=plalt)
         plons.append(plon)
         plats.append(plat)
 
