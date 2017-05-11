@@ -88,6 +88,9 @@ def cyclotron_freq(B):
     Takes a magnetic field value(s) parameter and uses it to calculate the
     cyclotron frequency for an electron in this field.
 
+    Basically either uses a single B field for a cyclotron frequency, or takes the 
+    average of an array and uses that to find a cyclotron frequency.
+
     ***PARAMS***
         B [float] or [list/ndarray of floats]: magnetic field. If in list form,
             this function takes the average magnitude of B's [nT]
@@ -341,6 +344,31 @@ def get_igrf(lons,lats,alts,ephtimes):
         B_igrf[i,:] = np.array((bx[0],by[0],bz[0]))
     return np.array(B_igrf)   
 
+def get_aspect_angle(kv,bv,vector_inputs=False):
+    """
+    Given b-vector(s) and k-vector(s), computes angle between them (aspect angle).
+
+    ***PARAMS***
+        kv: single vector or list/array of vectors showing the propagation direction of wave
+        bv: single vector or list/array of vectors for magnetic field
+        [vector_inputs]: boolean flag indicating to treat vector inputs
+
+    ***RETURNS***
+        ang_deg: aspect angle [deg]
+    """
+    if vector_inputs:
+        ang_deg = []
+        for i,kv_i in enumerate(kv):
+            bv_i = bv[i]
+            prod_i = np.dot(kv_i,bv_i)/(np.linalg.norm(kv_i)*np.linalg.norm(bv_i))
+            ang_deg_i = np.degrees(np.arccos(prod_i))
+            ang_deg.append(ang_deg_i)
+        ang_deg = np.array(ang_deg)
+    else:
+        prod = np.dot(kv,bv)/(np.linalg.norm(kv)*np.linalg.norm(bv)) 
+        ang_deg = np.degrees(np.arccos(prod))
+    return ang_deg
+
 def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552, tx_lat=45.403, tx_alt=0.07):
     """
     This function finds where a ray from a transmitter toward a satellite intersects the 
@@ -374,60 +402,51 @@ def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552, tx_lat=4
         tx_lat = tx_lat*np.ones(len(lat))
         tx_alt = tx_alt*np.ones(len(alt))
     x = (plasma_alt/alt)*dist
-    print ('x, dist: ',x,dist)
+    #print ('x, dist: ',x,dist)
     bearing,__ = get_bearing(tx_lon, tx_lat, lon, lat) #only need initial bearing
-    print ('bearing: ',bearing)
+    #print ('bearing: ',bearing)
     delta_EW = x*np.sin(np.deg2rad(bearing)) 
-    #delta_lon = delta_EW*360./(2*np.pi*6371.*np.sin(lat)) # convert to longitude (deg)
-    delta_lon = delta_EW/(6371.*np.sin(lat)) # convert to longitude (deg)
+    delta_lon = delta_EW*360./(2*np.pi*6371.*np.sin(np.deg2rad(lat))) # convert to longitude (deg)
+    #delta_lon = delta_EW/(6371.*np.sin(np.deg2rad(lat))) # convert to longitude (deg)
 
     delta_NS = x*np.cos(np.deg2rad(bearing)) # small bearings=mostly northward-> mostly delta_lat
-    #delta_lat = delta_NS*360./(2*np.pi*6371.)
-    delta_lat = delta_NS/(6371.)
-
-    print('delta_lon,delta_lat : ',delta_lon, delta_lat)
+    delta_lat = delta_NS*360./(2*np.pi*6371.)
+    #print('delta_EW,delta_NS: ',delta_EW,delta_NS)
+    #print('delta_lon,delta_lat : ',delta_lon, delta_lat)
 
     plasma_lon = tx_lon + delta_lon
     plasma_lat = tx_lat + delta_lat
-    print('plasma_lon,plasma_lat: ',plasma_lon,plasma_lat)
+    #print('plasma_lon,plasma_lat: ',plasma_lon,plasma_lat)
     return (plasma_lon, plasma_lat)
 
-def do_the_thing(lons,lats,alts,ephtimes,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+def faraday_pass(lons,lats,alts,ephtimes,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
     """
-    Performs the same 'ray trace' for each of a number of ephemeris points, collecting each point's
-    result in a list.
-
-
+    Performs faraday_trace() for each ephemeris point in a pass.
     """
-    TECs = []
-    mean_bcs = [] 
+    phase_integrals = []
+    ql_integrals = []
+    tecs = []
+    mean_bcs = []
     for i,alt in enumerate(alts):
         lon = lons[i]
         lat = lats[i]
-        ephtime = ephtimes[i] 
-        tec,bcs = phase_ray_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon,tx_lat,tx_alt)
-        TECs.append(tec)
+        ephtime = ephtimes[i]
+        TEC,bcs,ql_integral,phase_integral = faraday_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon,tx_lat,tx_alt)
+        tecs.append(TEC)
         mean_bcs.append(np.mean(bcs))
-    return TECs,mean_bcs
+        ql_integrals.append(ql_integral)
+        phase_integrals.append(phase_integral)
+    return tecs,mean_bcs,ql_integrals,phase_integrals
 
-def phase_ray_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+def faraday_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07,freq=1.0422E7):
     """
-    Does a 'ray trace' calculation, performing a line integral of the electron content
-    along the ray as well as the magnetic field along the k-vector (B cos(theta) for 
-    aspect angle theta)
+    Does a ray trace from a transmitter to a point to calculate faraday rotation.
 
-    ***PARAMS***
-        lon
-        lat
-        alt
-        densities_arr: 
-        densities_lats: list of latitudes describing the 
-        [tx_lon]:
-        [tx_lat]:
-        [tx_alt]:
+    This ray trace also calculates individual terms along the way (line 
+    integrals of electron density, B cos(theta), and their product).
 
-    ***RETURNS***
-        TEC
+    Directly computes indices of refraction for each voxel to allow a mostly 
+    unapproximated calculation of phase.
 
     """
     print("Tracing from transmitter at (75W,45N,70m Alt) to ({0},{1},{2}km elevation)".format(lon,lat,alt)) 
@@ -435,25 +454,41 @@ def phase_ray_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,tx_lon=-75.
     ang_deg = get_elevation_angle(tx_lon,tx_lat,tx_alt,lon,lat,alt)
     # path length through plasma voxel is r = y/sin(theta), y = 1E3 (1km)
     dist = 1E3/np.sin(np.deg2rad(ang_deg)) 
-    #print('Ray trace angle: ',ang_deg)
-    #print('Ray distance per 1km altitude gain: ',dist)
     kv = get_kvecs(lon,lat,alt)
     time = ephem_to_datetime(ephtime)
 
     # Plasma density profiles start at 60 km and go up to 559 km
-    TEC = 0. 
-    bcs = [] # B_cos_theta = bcs
-    for pl_alt in np.arange(60,alt): # Go from 60 km altitude up to satellite altitude
-        plon,plat = get_plasma_intersection(lon,lat,alt,plasma_alt=pl_alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
-        #print("(plon,plat,palt): ",plon,plat,pl_alt)
-        n = data_utils.get_density(plon, plat, pl_alt, densities_arr, densities_lats)
-        TEC += dist*n
+    ndiffs = []
+    bcs = []
+    TEC = 0.
+    phase_integral = 0.
+    ql_integral = 0.
 
+    pl_alts = np.arange(60.,alt)
+
+    for pl_alt in pl_alts: # Go from 60 km altitude up to satellite altitude
+        plon,plat = get_plasma_intersection(lon,lat,alt,plasma_alt=pl_alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
+
+        n_e = data_utils.get_density(plon, plat, pl_alt, densities_arr, densities_lats)
+        TEC += dist*n_e
+
+        omega_p = plasma_freq(n_e)
         bv = get_bvec(plon,plat,pl_alt,time)
-        prod = np.dot(bv,kv)/(np.linalg.norm(bv)*np.linalg.norm(kv)) 
-        ang = np.arccos(prod)
-        bcs.append(np.linalg.norm(bv)*np.cos(ang))
-    return TEC,bcs
+        omega_c = cyclotron_freq(1E-9*np.linalg.norm(bv))
+
+        X,Y,Z = appleton_coeffs(omega_p,omega_c,freq,0.)
+        ang_deg = get_aspect_angle(kv,bv)
+
+        b_cos_theta = np.abs(np.linalg.norm(bv)*np.cos(np.deg2rad(ang_deg)))
+        bcs.append(b_cos_theta)
+        ql_integral += dist*b_cos_theta*n_e
+
+        nplus,nminus = appleton_hartree(X,Y,Z,np.deg2rad(ang_deg))
+        phase_integral += dist*(nplus-nminus)
+
+    factors = (2*np.pi*freq)/(2*3.00E8)
+    phase_integral *= factors # omega/2c factor for the integral
+    return TEC,bcs,ql_integral,phase_integral
 
 def get_kb_angle(lons, lats, alts, ephtimes, tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
     """
@@ -815,6 +850,10 @@ if __name__=="__main__":
     if (np.round(b_igrf[0]) != np.array([17858.,-3148.,39417.])).any():
         print("Error with get_igrf()")
 
+    # Test get_aspect_angle():
+    kv_tst = np.array((1,2,3))
+    bv_tst = np.array((2,30,7))
+
     # Test get_plasma_intersection():
     plasma_lon,plasma_lat = get_plasma_intersection(-75.552,48.403,370.) #directly north
     if np.round(plasma_lon,1)!=284.4 or np.round(plasma_lat,1)!=47.8:
@@ -839,13 +878,15 @@ if __name__=="__main__":
     if (index_closest!=103) or np.round(dists[-1],2)!=1049.97:
         print("Error with get_closest_approach")
 
-
-    # Test phase_ray_trace
+    # Test faraday_trace
     datarr,datlats = data_utils.load_density_profile('./data/20160418-densities.txt')
-    tec,bcs = phase_ray_trace(lons[0],lats[0],alts[0],ephtimes[0],datarr,datlats)
+    tec,bcs,__,__ = faraday_trace(lons[0],lats[0],alts[0],ephtimes[0],datarr,datlats)
     if np.round(np.log10(tec),3)!=17.198: # validated calculations by noting similarity of numbers with Rob's
-        print("Error with phase_ray_trace") 
+        print("Error with faraday_trace") 
 
+
+
+    # Some extra stuff I want to do for analysis at the bottom here...
     Roblons,Roblats,Robalts = data_utils.load_rob_ephemeris('./data/satcoords_20160418.txt')
     lons18,lats18,alts18,ephtimes18 = data_utils.get_rri_ephemeris(data_utils.get_ottawa_data('20160418')[0])    
 
@@ -856,10 +897,13 @@ if __name__=="__main__":
     lat18 = lats18[i]
     alt18 = alts18[i]
     ephtime18 = ephtimes18[i]
-    for plalt in np.arange(60.,alt18):                                                   
+    plalts = np.arange(60.,alt18)
+    for plalt in plalts:                                                   
         plon,plat = get_plasma_intersection(lon18,lat18,alt18,plasma_alt=plalt)
         plons.append(plon)
         plats.append(plat)
 
+    #tecs,mean_bcs,ql_integrals,phase_integrals = faraday_pass(lons18,lats18,alts18,ephemtimes18,datarr,datlats)
+    # plt.plot(phase_integrals); plt.show()
 
     print("Tests complete!")
