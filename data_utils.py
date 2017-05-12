@@ -163,7 +163,7 @@ def get_rri_ephemeris_full(dat_fname):
     geog_longs = f['CASSIOPE Ephemeris']['Geographic Longitude (deg)'].value
     geog_lats  = f['CASSIOPE Ephemeris']['Geographic Latitude (deg)'].value
     ephem_times = f['CASSIOPE Ephemeris']['Ephemeris MET (seconds since May 24, 1968)'].value
-    #TODO: Wasted processing when other functions call this but don't receive the converted times array
+    # Wasted processing when other functions call this but don't receive the converted times array
     times = ephems_to_datetime(ephem_times) 
     alts = f['CASSIOPE Ephemeris']['Altitude (km)'].value
     mlat = f['CASSIOPE Ephemeris']['Magnetic Latitude (deg)'].value
@@ -258,6 +258,17 @@ def get_ottawa_data2(date_string):
 def load_density_profile(fname):
     """
     Function for loading data from an electron densities data file.    
+
+    ***PARAMS***
+        fname [string]: name (including path) of file containing densities
+
+    ***RETURNS***
+        datarr [list of np.ndarray of floats] arrays corresponding to different
+                 latitudes for e- density at various altitudes.
+        datlats [list of floats]: latitudes corresponding to each entry in datarr list
+ 
+    * NOTE: 
+
     """
     import pandas as pd
     dat = pd.read_csv(fname)
@@ -273,6 +284,17 @@ def load_density_profile(fname):
 def load_rob_ephemeris(fname):
     """
     Use to grab the ephemeris points in one of Rob's simulation data files
+
+    ***PARAMS***
+        fname [string]: name (including path) of file containing ephemeris pts 
+
+    ***RETURNS**
+        Roblons [list of floats]: longitudes
+        Roblats [list of floats]: latitudes 
+        Robalts [list of floats]: altitudes
+
+    * This function was written for parsing Rob Gillies' simulation's files. *
+
     """
     f = open(fname)
     Roblons = []
@@ -294,8 +316,18 @@ def get_density(lon, lat, alt, datarr, datlats):
     Function for taking array of electron densities and returning the right one
     for a particular location/altitude.
 
+    (You give us the data and we'll do the work for you!)
+
     **These electron densities are in terms of m^3**
 
+
+    ***PARAMS***
+        lon [float]: longitude to check density at [deg]
+        lat [float: latitude to check density at [deg]
+        alt [float]: altitude to check density at [km]
+
+    ***RETURNS***
+        <density> [float]: electron number density from the densities  array [m^-3] 
     """
     if lat > np.max(datlats) or lat < np.min(datlats):
         #print("No data for that latitude - using closest latitude...")
@@ -391,8 +423,6 @@ def get_line_in_file(fl, srch_str):
     return line_num
 
 
-
-
 def list_mgf_files(path='data/mgf/'):
     """ 
     Returns a list of the mgf files that can simply be indexed so as to easily
@@ -407,6 +437,12 @@ def list_mgf_files(path='data/mgf/'):
 def exit_rri():
     """
     Easy shortcut in interactive mode to unmount the system and quit.
+
+    ***PARAMS***
+        - none -
+
+    ***RETURNS***
+        - none - 
     """
     import sys
     os.system("fusermount -uq ./data/remote/")
