@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import data_utils
 import magnet_data
 
-from script_utils import *
+from script_utils import ephem_to_datetime, ephems_to_datetime 
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403
@@ -964,7 +964,7 @@ if __name__=="__main__":
 
     # Test get_kdip_angles():
     #TODO: test and *validate*!
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll = \
+    (lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll) = \
         data_utils.get_rri_ephemeris_full(filename)
     dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,
                                                pitch,yaw,roll)
@@ -1013,9 +1013,10 @@ if __name__=="__main__":
         plats.append(plat)
 
 
-    
+    """ 
     tecs,mean_bcs,ql_integrals,phase_integrals = faraday_pass(
                 lons18,lats18,alts18,ephtimes18,datarr,datlats)
     plt.plot(phase_integrals); plt.show()
-    
+    """
+ 
     print("Tests complete!")

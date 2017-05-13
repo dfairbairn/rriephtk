@@ -6,7 +6,7 @@ Looking at Magnetometer data from ePOP during the Ottawa passes of April 2016.
 
 """
 from data_utils import *
-from ottawa_plots import *
+from analysis_tools import *
 import h5py
 
 sample_mgf_datafile = "data/mgf/MGF_20160418_222505_224033_V_01_00_00.1sps.GEI.lv3"
@@ -222,14 +222,14 @@ def cmp_igrf_magnetometer(fname=sample_mgf_datafile, date_string="20160418"):
     # Get RRI ephemeris data together so that we can remove effect of spacecraft direction
     lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(rrifname)
     ephtimes = np.array([ round(e) for e in ephtimes]) # crucial for comparing mgf and rri times
-    vs,dists = get_ramdirs(lons, lats, alts, ephtimes)
+    vs,dists = get_ramdirs(lons, lats, alts)
 
     # Calculate IGRF at each ephemeris point
     # import os
     # import sys
     # Redirect stdout so that IGRF can't print to the screen and spam me
     # sys.stdout = open(os.devnull, "w") # turns out it doesnt work because IGRF stuff is in fortran/handled separately
-    B_igrf,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes) 
+    B_igrf,kvecs,angles = get_kb_angle(lons,lats,alts,ephtimes) 
     # sys.stdout = sys.__stdout__ # Reconnect stdout
 
     # TMP change! Leaving both arrays of B field measurements unchanged and playing with spacepy on them
