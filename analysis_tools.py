@@ -15,6 +15,7 @@ date: May 2017
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
 
 import data_utils
 import magnet_data
@@ -29,7 +30,9 @@ OTTAWA_TX_ELEV = 0.070 # Ottawa 70m elevation - small compared to satellite
 EL_CHARGE = 1.602E-19   #[C]
 EL_MASS = 9.109E-31 #[kg]
 EPS0 = 8.8542E-12   #[A*s/(V*m)]
-EARTH_RAD = 6.371E6  #[m]
+EARTH_RAD = 6371.   #[km]
+
+logging.basicConfig(filename='./data/analysis-tools.log',level=logging.DEBUG)
 
 # -----------------------------------------------------------------------------
 #                       Index of Refraction-related Code
@@ -59,7 +62,7 @@ def basic_ionosphere_params(altitude=300.):
     """
 
     if altitude > 400. or altitude < 200.:
-        print "Bad altitude parameter"
+        logging.error("Bad altitude parameter")
         return None
 
     # Assumed parameters:
@@ -78,7 +81,7 @@ def basic_ionosphere_params(altitude=300.):
     B   = 2*Md/(r**3)                #[T]    Earth’s magnetic field
     omega_c  = e*B/(me)            #[Hz]   Cyclotron frequency
 
-    return omega_c,omega_p,l_d
+    return omega_c, omega_p, l_d
 
 def plasma_freq(n_e):
     """
@@ -114,13 +117,13 @@ def cyclotron_freq(B):
     elif isinstance(B, float):
         B_mag = B
     else:
-        print "Unexpected data type for B field parameter"
-        print (B,"\t",type(B))
+        logging.error("Unexpected data type for B field parameter")
+        logging.error("{0}\t{1}".format(B,type(B)))
         return None
     omega_c  = e*B_mag/(me)            #[Hz]   Cyclotron frequency
     return omega_c
 
-def improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=250.):
+def improved_cyclotron_freq(lons, lats, alts, ephtimes, fof2_alt=250.):
     """
 
     """
@@ -129,7 +132,7 @@ def improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=250.):
     me = 9.109E-31            #[kg]           Electron rest mass
 
     # attempt to find B field within peak plasma density region at fof2 alt
-    B = magnet_data.get_igrf(lons,lats,fof2_alt*np.ones(len(alts)),ephtimes)
+    B = magnet_data.get_igrf(lons, lats, fof2_alt*np.ones(len(alts)), ephtimes)
     # Convert with 1E-9 for [m^3] vs [km^3]
     B_mag = 1E-9*np.mean([np.linalg.norm(j) for j in B ])
     omega_c = e*B_mag/me
@@ -138,7 +141,7 @@ def improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=250.):
 
 def appleton_coeffs(omega_c, omega_p, freq, nu_e):
     """
-    Gets the Appleton Hartree X,Y,Z coefficients given the ionospheric params.
+    Gets the Appleton Hartree X, Y, Z coefficients given the ionospheric params.
 
     Parameters:
         omega_c: angular cyclotron frequency (rad/s)
@@ -156,10 +159,10 @@ def appleton_coeffs(omega_c, omega_p, freq, nu_e):
     X = (omega_p/omega)**2
     Y = omega_c/omega
     Z = nu_e/omega
-    return X,Y,Z
+    return X, Y, Z
 
 
-def appleton_hartree(X,Y,Z,theta):
+def appleton_hartree(X, Y, Z, theta):
     """
     Computes the index of refraction of the ionospheric plasma medium
     using the appleton-hartree equation. Aided by helper functions for X, Y,
@@ -184,15 +187,15 @@ def appleton_hartree(X,Y,Z,theta):
     nminus_squared = 1 - X/(term1 - term2 - term3)
     nplus = np.sqrt(nplus_squared)
     nminus = np.sqrt(nminus_squared)
-    return nplus,nminus
+    return nplus, nminus
 
-def txpass_to_indices(lons,lats,alts,ephtimes,
-                      tx_lon,tx_lat,freq,omega_p,omega_c,nu_e=0.0):
+def txpass_to_indices(lons, lats, alts, ephtimes,
+                      tx_lon, tx_lat, freq, omega_p, omega_c, nu_e=0.0):
     """
     Calculates the expected indices of refraction at the fof2 peak for radio
     waves directed from a specified transmitter toward CASSIOPE.
 
-    Each satellite ephemeris point ([lon,lat,alt,ephtime]) receives aspect
+    Each satellite ephemeris point ([lon, lat, alt, ephtime]) receives aspect
     angles (from get_kb_angle) and corresponding indices of refraction for the
     ionospheric plasma at the given frequency.
 
@@ -213,12 +216,12 @@ def txpass_to_indices(lons,lats,alts,ephtimes,
         nminus [float]: negative AH solution (X-mode index of ref)
 
     """
-    kvecs,bvecs,angles = get_kb_angle(lons,lats,alts,ephtimes,
-                                      tx_lon=tx_lon,tx_lat=tx_lat)
-    #bvecs,kvecs,angles = get_kb_ottawa_angle(lons,lats,alts,ephtimes)
+    kvecs, bvecs, angles = get_kb_angle(lons, lats, alts, ephtimes,
+                                      tx_lon=tx_lon, tx_lat=tx_lat)
+    #bvecs, kvecs, angles = get_kb_ottawa_angle(lons, lats, alts, ephtimes)
     angles_rad = np.deg2rad(angles)
-    X,Y,Z = appleton_coeffs(omega_c,omega_p,freq,nu_e)
-    np_sq,nm_sq = appleton_hartree(X,Y,Z,angles_rad)
+    X, Y, Z = appleton_coeffs(omega_c, omega_p, freq, nu_e)
+    np_sq, nm_sq = appleton_hartree(X, Y, Z, angles_rad)
     nplus = np.sqrt(np_sq)
     nminus = np.sqrt(nm_sq)
     return angles_rad, nplus, nminus
@@ -254,13 +257,13 @@ def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
     """
     vec_inp = True if (type(glon)==list or type(glon)==np.ndarray) else False
 
-    init_bearing,final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
+    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
 
     # In spherical coordinates, subtracting vectors doesn't get us the path
     # from one point to another along the surface. To accomplish that, we use
     # bearings and elevation angles.
 
-    init_bearing,final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
+    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
     if vec_inp:
         txlons = np.ones(len(glon))*tx_lon
         txlats = np.ones(len(glat))*tx_lat
@@ -280,10 +283,36 @@ def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
     kz = np.cos(np.deg2rad(phi))
 
     if vec_inp:
-        kv = np.array([(kx[i],ky[i],kz[i]) for i in range(len(kx))])
+        kv = np.array([(kx[i], ky[i], kz[i]) for i in range(len(kx))])
     else:
-        kv = np.array((kx,ky,kz))
+        kv = np.array((kx, ky, kz))
     return kv
+
+def get_kvec2(lon, lat, alt, ephtimes=None, 
+              tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
+    """
+    Uses cartesian coordinates to get absolute direction vector between
+    two (lon, lat, alt) points.
+    """
+    import spacepy.coordinates as coord
+    import spacepy.time as tm
+    import datetime as dt
+    b = coord.Coords([[alt + EARTH_RAD, lat, lon]],'GEO','sph')
+    a = coord.Coords([[tx_alt + EARTH_RAD, tx_lat, tx_lon]], 'GEO', 'sph')
+    if ephtimes is None:
+        b.ticks = tm.Ticktock(dt.datetime.now()) # because it doesnt matter
+        a.ticks = tm.Ticktock(dt.datetime.now()) # because it doesnt matter
+    else:
+        times = ephems_to_datetime(ephtimes)
+        b.ticks = tm.Ticktock(times)
+        a.ticks = tm.Ticktock(times)
+
+    b = b.convert('GEO','car')
+    a = a.convert('GEO','car')
+    kv_other = (b.data - a.data)[0] 
+    kv_other = kv_other/np.linalg.norm(kv_other)
+    logging.info("get_kvecs2 result: ", kv_other)
+    return kv_other
 
 def get_bvec(glon, glat, altitude, time):
     """
@@ -317,13 +346,18 @@ def get_bvec(glon, glat, altitude, time):
     xlni, xlnf, xlnd = glon, glon, stp
     ifl = 0 # Main field
     # Call fortran subroutine
-    lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,
-                                           xlti,xltf,xltd,xlni,xlnf,xlnd)
+    lat, lon, d, s, h, bx, by, bz, f = igrf.igrf11(itype, date, alt, ifl,
+                                           xlti, xltf, xltd, xlni, xlnf, xlnd)
     # Unstifl= old_out
-    return np.array((bx[0],by[0],bz[0]))
+    return np.array((bx[0], by[0], bz[0]))
 
+def get_bvec2(lon, lat, alt, time):
+    bvec = get_bvec(lon, lat, alt, time)
+    logging.info('alt, lat, lon: ', alt, lat, lon)
+    bv_geo = dir_ned2geo((alt, lat, lon), bvec, time=time)
+    return bv_geo
 
-def get_igrf(lons,lats,alts,ephtimes):
+def get_igrf(lons, lats, alts, ephtimes):
     """
     This function uses the IGRF model in DavitPy to calculate the magnetic
     field vector at given near-Earth locations at a particular times.
@@ -355,13 +389,13 @@ def get_igrf(lons,lats,alts,ephtimes):
         xlti, xltf, xltd = lat, lat, stp
         xlni, xlnf, xlnd = lon, lon, stp
         # Call fortran subroutine
-        lat,lon,d,s,h,bx,by,bz,f = igrf.igrf11(itype,date,alt,ifl,
-                                               xlti,xltf,xltd,xlni,xlnf,xlnd)
+        lat, lon, d, s, h, bx, by, bz, f = igrf.igrf11(
+                itype, date, alt, ifl, xlti, xltf, xltd, xlni, xlnf, xlnd)
         # Save vector components to the B_igrf array
-        B_igrf[i,:] = np.array((bx[0],by[0],bz[0]))
+        B_igrf[i,:] = np.array((bx[0], by[0], bz[0]))
     return np.array(B_igrf)
 
-def get_aspect_angle(kv,bv,vec_inp=False):
+def get_aspect_angle(kv, bv, vec_inp=False):
     """
     Given b-vec(s) and k-vec(s), computes angle between them (aspect angle).
 
@@ -376,25 +410,25 @@ def get_aspect_angle(kv,bv,vec_inp=False):
     """
     if vec_inp:
         ang_deg = []
-        for i,kv_i in enumerate(kv):
+        for i, kv_i in enumerate(kv):
             bv_i = bv[i]
-            p_i = np.dot(kv_i,bv_i)/(np.linalg.norm(kv_i)*np.linalg.norm(bv_i))
+            p_i = np.dot(kv_i, bv_i)/(np.linalg.norm(kv_i)*np.linalg.norm(bv_i))
             ang_deg_i = np.degrees(np.arccos(p_i))
             ang_deg.append(ang_deg_i)
         ang_deg = np.array(ang_deg)
     else:
-        p = np.dot(kv,bv)/(np.linalg.norm(kv)*np.linalg.norm(bv))
+        p = np.dot(kv, bv)/(np.linalg.norm(kv)*np.linalg.norm(bv))
         ang_deg = np.degrees(np.arccos(p))
     return ang_deg
 
-def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552,
+def get_plasma_intersection(lon, lat, alt, plasma_alt=300., tx_lon=-75.552,
                             tx_lat=45.403, tx_alt=0.07):
     """
     This function finds where a ray from a transmitter toward a satellite
     intersects the peak plasma in the middle.
 
     *** PARAMS ***
-    Satellite ephemeris point(s): lon,lat,alt (deg, deg, km)
+    Satellite ephemeris point(s): lon, lat, alt (deg, deg, km)
     Transmitter location [optionally]: tx_lon, tx_lat, tx_alt (deg, deg, km)
     Altitude of peak plasma density: plasma_alt (km.)
 
@@ -406,15 +440,15 @@ def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552,
     vec_inp = True if (type(lon)==list or type(lon)==np.ndarray) else False
     #lon = (lon + 360.) % 360.
     #tx_lon = (tx_lon + 360.) % 360.
-    dist = haversine(lon,lat,tx_lon,tx_lat)
+    dist = haversine(lon, lat, tx_lon, tx_lat)
     if dist > 2500.:
-        print("This approximation isn't valid for large distances")
-        print("dist: ",dist)
+        logging.error("This approximation isn't valid for large distances")
+        logging.error("dist: {0}".format(dist))
         return (-1,-1)
     if plasma_alt > np.min(alt):
-        print("Input altitudes are too low for the plasma")
-        print('plasma_alt: ',plasma_alt)
-        print('alt: ',alt)
+        logging.error("Input altitudes are too low for the plasma")
+        logging.error('plasma_alt: {0}'.format(plasma_alt))
+        logging.error('alt: {0}'.format(alt))
         return (-1,-1)
     if vec_inp:
         tx_lon = tx_lon*np.ones(len(lon))
@@ -431,13 +465,13 @@ def get_plasma_intersection(lon,lat,alt,plasma_alt=300.,tx_lon=-75.552,
 
     plasma_lon = tx_lon + delta_lon
     plasma_lat = tx_lat + delta_lat
-    #print('delta_EW,delta_NS: ',delta_EW,delta_NS)
-    #print('delta_lon,delta_lat: ',delta_lon, delta_lat)
-    #print('plasma_lon,plasma_lat: ',plasma_lon,plasma_lat)
+    logging.info('delta_EW, delta_NS: {0},{1}'.format(delta_EW, delta_NS))
+    logging.info('delta_lon, delta_lat: {0},{1}'.format(delta_lon, delta_lat))
+    logging.info('plasma_lon, plasma_lat: {0},{1}'.format(plasma_lon, plasma_lat))
     return (plasma_lon, plasma_lat)
 
-def faraday_pass(lons,lats,alts,ephtimes,densities_arr,densities_lats,
-                 tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07):
+def faraday_pass(lons, lats, alts, ephtimes, densities_arr, densities_lats,
+                 tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
     """
     Performs faraday_trace() for each ephemeris point in a pass.
 
@@ -456,21 +490,21 @@ def faraday_pass(lons,lats,alts,ephtimes,densities_arr,densities_lats,
     ql_integrals = []
     tecs = []
     mean_bcs = []
-    for i,alt in enumerate(alts):
+    for i, alt in enumerate(alts):
         lon = lons[i]
         lat = lats[i]
         ephtime = ephtimes[i]
-        TEC,bcs,ql_integral,faraday_integral = faraday_trace(
-            lon,lat,alt,ephtime,densities_arr,densities_lats,
-            tx_lon,tx_lat,tx_alt)
+        TEC, bcs, ql_integral, faraday_integral = faraday_trace(
+            lon, lat, alt, ephtime, densities_arr, densities_lats,
+            tx_lon, tx_lat, tx_alt)
         tecs.append(TEC)
         mean_bcs.append(np.mean(bcs))
         ql_integrals.append(ql_integral)
         faraday_integrals.append(faraday_integral)
-    return tecs,mean_bcs,ql_integrals,faraday_integrals
+    return tecs, mean_bcs, ql_integrals, faraday_integrals
 
-def faraday_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,
-                  tx_lon=-75.552,tx_lat=45.503,tx_alt=0.07,freq=1.0422E7):
+def faraday_trace(lon, lat, alt, ephtime, densities_arr, densities_lats,
+                  tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07, freq=1.0422E7):
     """
     Does a ray trace from a transmitter to a input point to calculate
     faraday rotation.
@@ -482,13 +516,13 @@ def faraday_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,
     mostly unapproximated calculation of phase.
 
     """
-    print("Tracing from transmitter at (75W,45N,70m Alt) "
-          "to ({0},{1},{2}km elevation)".format(lon,lat,alt))
+    logging.info("Tracing from transmitter at (75W,45N,70m Alt) "
+          "to ({0},{1},{2}km elevation)".format(lon, lat, alt))
 
-    ang_deg = get_elevation_angle(tx_lon,tx_lat,tx_alt,lon,lat,alt)
+    ang_deg = get_elevation_angle(tx_lon, tx_lat, tx_alt, lon, lat, alt)
     # path length through plasma voxel is r = y/sin(theta), y = 1E3 (1km)
     dist = 1E3/np.sin(np.deg2rad(ang_deg))
-    kv = get_kvecs(lon,lat,alt)
+    kv = get_kvecs(lon, lat, alt)
     time = ephem_to_datetime(ephtime)
 
     # Plasma density profiles start at 60 km and go up to 559 km
@@ -498,36 +532,36 @@ def faraday_trace(lon,lat,alt,ephtime,densities_arr,densities_lats,
     phase_integral = 0.
     ql_integral = 0.
 
-    pl_alts = np.arange(60.,alt)
+    pl_alts = np.arange(60., alt)
 
     for pl_alt in pl_alts: # Go from 60 km altitude up to satellite altitude
-        plon,plat = get_plasma_intersection(lon,lat,alt,plasma_alt=pl_alt,
-                                            tx_lon=tx_lon,tx_lat=tx_lat,
+        plon, plat = get_plasma_intersection(lon, lat, alt, plasma_alt=pl_alt,
+                                            tx_lon=tx_lon, tx_lat=tx_lat,
                                             tx_alt=tx_alt)
 
         n_e = data_utils.get_density(plon, plat, pl_alt, densities_arr,
                                      densities_lats)
         TEC += dist*n_e
         omega_p = plasma_freq(n_e)
-        bv = get_bvec(plon,plat,pl_alt,time)
+        bv = get_bvec(plon, plat, pl_alt, time)
         # 1E-9 factor necessary for nT -> T
         omega_c = cyclotron_freq(1E-9*np.linalg.norm(bv))
 
-        X,Y,Z = appleton_coeffs(omega_p,omega_c,freq,0.)
-        ang_deg = get_aspect_angle(kv,bv)
+        X, Y, Z = appleton_coeffs(omega_p, omega_c, freq,0.)
+        ang_deg = get_aspect_angle(kv, bv)
         b_cos_theta = np.abs(np.linalg.norm(bv)*np.cos(np.deg2rad(ang_deg)))
         bcs.append(b_cos_theta)
         # 1E-9 factor necessary for nT -> T
         ql_integral += dist*b_cos_theta*n_e*1E-9
 
-        nplus,nminus = appleton_hartree(X,Y,Z,np.deg2rad(ang_deg))
+        nplus, nminus = appleton_hartree(X, Y, Z, np.deg2rad(ang_deg))
         phase_integral += dist*(nplus-nminus)
 
     factors1 = ((1.602E-19)**3)/(2*3.00E8*8.85E-12*(9.11E-31*2*np.pi*freq)**2)
     factors2 = (2*np.pi*freq)/(2*3.00E8)
     ql_integral *= factors1
     phase_integral *= factors2 # omega/2c factor for the integral
-    return TEC,bcs,ql_integral,phase_integral
+    return TEC, bcs, ql_integral, phase_integral
 
 def get_kb_angle(lons, lats, alts, ephtimes,
                  tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
@@ -551,9 +585,9 @@ def get_kb_angle(lons, lats, alts, ephtimes,
       [tx_alt] (np.array[float]): optional transmitter altitude
 
     *** RETURNS ***
-      bvecs [np.array[(float,float,float)]: the IGRF B field at each
+      bvecs [np.array[(float, float, float)]: the IGRF B field at each
                                             ephemeris point
-      kvecs [np.array[(float,float,float)]: the tx-to-rx(sat) vector
+      kvecs [np.array[(float, float, float)]: the tx-to-rx(sat) vector
                                             at each ephemeris point
       angles [np.array[float]: the aspect angle (angle between
                                respective bvecs and kvecs)
@@ -561,33 +595,34 @@ def get_kb_angle(lons, lats, alts, ephtimes,
     # Extension to allow single aspect angles to be calculated
     import numbers
     if isinstance(lons, numbers.Number):
-        #print("Inputting single query")
-        kv = get_kvecs(lons,lats,alts)
-        bv = get_bvec(lons,lats,alts,ephem_to_datetime(ephtimes))
-        prod = np.dot(kv,bv)/(np.linalg.norm(bv)*np.linalg.norm(kv))
+        logging.info("Inputting single query")
+        kv = get_kvecs(lons, lats, alts)
+        bv = get_bvec(lons, lats, alts, ephem_to_datetime(ephtimes))
+        prod = np.dot(kv, bv)/(np.linalg.norm(bv)*np.linalg.norm(kv))
         ang = np.rad2deg(np.arccos(prod))
-        return bv,kv,ang
+        return bv, kv, ang
 
     # Otherwise, for vector inputs:
     times = ephems_to_datetime(ephtimes)
     angles = []
     bvecs = []
     kvecs = []
-    for i,lon in enumerate(lons):
+    for i, lon in enumerate(lons):
         lat = lats[i]
         alt = alts[i]
         time = times[i]
-        bvec = get_bvec(lon,lat,alt,time)
-        kvec = get_kvecs(lon,lat,alt,tx_lon=tx_lon,tx_lat=tx_lat,tx_alt=tx_alt)
-        #print "B vector: " + str(bvec)
-        #print "K vector: " + str(kvec)
+        bvec = get_bvec(lon, lat, alt, time)
+        kvec = get_kvecs(lon, lat, alt, 
+                         tx_lon=tx_lon, tx_lat=tx_lat, tx_alt=tx_alt)
+        logging.info("get_kb_angle B vector: {0}".format(bvec))
+        logging.info("get_kb_angle K vector: {0}".format(kvec))
         # Take the dot product, divide out the magnitude of the vectors
-        prod = np.dot(kvec,bvec)/(np.linalg.norm(bvec)*np.linalg.norm(kvec))
+        prod = np.dot(kvec, bvec)/(np.linalg.norm(bvec)*np.linalg.norm(kvec))
         angle = np.rad2deg(np.arccos(prod))
         angles.append(angle)
         bvecs.append(bvec)
         kvecs.append(kvec)
-    return np.array(bvecs),np.array(kvecs),np.array(angles)
+    return np.array(bvecs), np.array(kvecs), np.array(angles)
 
 def get_ramdirs(glon, glat, altitude):
     """
@@ -618,15 +653,15 @@ def get_ramdirs(glon, glat, altitude):
         lat2 = glat[i+1]
         alt1 = altitude[i]
         alt2 = altitude[i+1]
-        # if lon1,lat1 -- lon2,lat2 is the hypotenuse, this is the vertical
-        latdist = haversine(lon1,lat1,lon1,lat2)
+        # if lon1, lat1 -- lon2, lat2 is the hypotenuse, this is the vertical
+        latdist = haversine(lon1, lat1, lon1, lat2)
         # and this is the horizontal
-        londist = haversine(lon1,lat1,lon2,lat1)
+        londist = haversine(lon1, lat1, lon2, lat1)
         altdist = alt2 - alt1
-        dist = np.linalg.norm((latdist,londist,altdist))
-        v.append((latdist,londist,altdist))
+        dist = np.linalg.norm((latdist, londist, altdist))
+        v.append((latdist, londist, altdist))
         dists.append(dist)
-    return v,dists
+    return v, dists
 
 def get_closest_approach(lons, lats, alts, tx_lon=OTTAWA_TX_LON,
                          tx_lat=OTTAWA_TX_LAT, tx_alt=OTTAWA_TX_ELEV):
@@ -655,7 +690,7 @@ def get_closest_approach(lons, lats, alts, tx_lon=OTTAWA_TX_LON,
     for i in range(np.size(lons)):
         dist_before_alt = haversine(lons[i], lats[i], tx_lon, tx_lat)
         delt_alt = alts[i] - tx_alt
-        dist = np.linalg.norm((dist_before_alt,delt_alt))
+        dist = np.linalg.norm((dist_before_alt, delt_alt))
         # Initially, I took a quick and dirty approach to find the
         # point of smallest Euclidean distance in terms of latitudes
         # and longitudes.
@@ -668,7 +703,7 @@ def get_closest_approach(lons, lats, alts, tx_lon=OTTAWA_TX_LON,
             index_shortest = i
     return index_shortest, dists
 
-def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
+def get_kdip_angles(lons, lats, alts, ephtimes, pitch, yaw, roll):
     """
     Call this function to retrieve a list of the directions of the RRI
     dipole plane in N-E-down coordinates for the first n-1 ephemeris
@@ -687,7 +722,7 @@ def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
       roll (np.array[float]): 'CW/CCW' rotational offset of spacecraft
 
     *** RETURNS ***
-        dipole_dirs (np.array[(float,float,float)]: array of directions
+        dipole_dirs (np.array[(float, float, float)]: array of directions
             of the spacecraft at various points in N-E-D coords
         kdip_angles (np.array[float]): array of angles between the line
             of sight vector and the dipole_dirs
@@ -696,19 +731,19 @@ def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
     #TODO: VALIDATE THIS. SEEMS LIKE WE'RE OFF BY 90 DEGREES
 
     # vs is a vector of ram directions in N, E, Down coordinates
-    vs,dists = get_ramdirs(lons,lats,alts)
+    vs, dists = get_ramdirs(lons, lats, alts)
 
     # kvecs will be k_LOS vectors in N, E, Down coordinates
     kvecs = []
     for i in range(lons.__len__()):
-        kvec = get_kvecs(lons[i],lats[i],alts[i])
+        kvec = get_kvecs(lons[i], lats[i], alts[i])
         kvecs.append(kvec)
 
     # Word of Gareth:
     # x is ram direction, z is nadir direction, y is Z cross X.
     xdirs = vs
     zdirs = np.array([(0,0,1) for i in range(xdirs.__len__())])
-    ydirs = np.cross(zdirs,xdirs)
+    ydirs = np.cross(zdirs, xdirs)
 
     # yaw: rot around z, pitch: rot around y, roll: rot around x
     # Assuming as seems to be confirmed in documentation that the
@@ -717,17 +752,17 @@ def get_kdip_angles(lons,lats,alts,ephtimes,pitch,yaw,roll):
     dipole_dirs = []
     kdip_angles = []
     for i in range(xdirs.__len__()):
-        yaw_rot = rotation_matrix(zdirs[i],np.deg2rad(yaw[i]))
-        pitch_rot = rotation_matrix(ydirs[i],np.deg2rad(pitch[i]))
-        roll_rot = rotation_matrix(xdirs[i],np.deg2rad(roll[i]))
+        yaw_rot = rotation_matrix(zdirs[i], np.deg2rad(yaw[i]))
+        pitch_rot = rotation_matrix(ydirs[i], np.deg2rad(pitch[i]))
+        roll_rot = rotation_matrix(xdirs[i], np.deg2rad(roll[i]))
         initial_dipole_vec = xdirs[i]
-        intermed1 = np.dot(yaw_rot,initial_dipole_vec)
-        intermed2 = np.dot(pitch_rot,intermed1)
+        intermed1 = np.dot(yaw_rot, initial_dipole_vec)
+        intermed2 = np.dot(pitch_rot, intermed1)
         # After all the rotations, we have dip_dir
-        dip_dir = np.dot(roll_rot,intermed2)
+        dip_dir = np.dot(roll_rot, intermed2)
         dipole_dirs.append(dip_dir)
         # Determine what the relative angle is between k_LOS and dip_dir
-        kdip_angle = np.arccos(np.dot(dip_dir,kvecs[i])/(
+        kdip_angle = np.arccos(np.dot(dip_dir, kvecs[i])/(
             np.linalg.norm(dip_dir)*np.linalg.norm(kvecs[i])))
         kdip_angles.append(np.rad2deg(kdip_angle))
     return dipole_dirs, kdip_angles
@@ -756,13 +791,13 @@ def get_elevation_angle(lon1, lat1, alt1, lon2, lat2, alt2):
     # doesn't account for curvature of earth! Future goal
     if type(arcdist)==list or type(arcdist)==np.ndarray:
         if (arcdist > 2500.).any():
-            print("*This approximation won't work for points this far apart*")
+            logging.error("*Approximation won't work for this distance*")
             return -1.
     elif arcdist > 2500.:
-        print("**This approximation won't work for points this far apart**")
+        logging.error("**Approximation won't work for points this distance**")
         return -1.
 
-    elev_angle = np.rad2deg(np.arctan2(delta_alt,arcdist))
+    elev_angle = np.rad2deg(np.arctan2(delta_alt, arcdist))
     return elev_angle
 
 def get_bearing(lon1, lat1, lon2, lat2):
@@ -796,7 +831,7 @@ def get_bearing(lon1, lat1, lon2, lat2):
         * np.cos(np.deg2rad(lon1 - lon2))
     rev_bearing = np.rad2deg(np.arctan2(atan2_argx, atan2_argy1-atan2_argy2))
     final_bearing = (rev_bearing + 180.) % 360.
-    return init_bearing,final_bearing
+    return init_bearing, final_bearing
 
 def haversine(lon1, lat1, lon2, lat2):
     """
@@ -838,8 +873,64 @@ def rotation_matrix(axis, theta):
                      [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]])
 
 
-if __name__=="__main__":
+def dir_ned2geo(loc_sph, dir_NED, time=None):
+    """
+    Convert a direction vector in terms of N-E-D components to the GEI
+    coordinate system.
 
+    *** PARAMS ***
+        loc_sph: spherical geographic coordinates location:
+            (alt, Altitude of point (km)
+             lat, Latitude of point (deg)
+             lon) Longitude of point (deg)
+        dir_NED: pointing direction in NED coordinates
+            (N, direction component in north direction
+             E, direction component in east direction 
+             D) direction component in down direction
+        [time]: time for which this applies [default: None] [datetime]
+
+    *** RETURNS ***
+        GEI_x: direction component in GEI's X direction
+        GEI_y: direction component in GEI's Y direction
+        GEI_z: direction component in GEI's Z direction
+
+    """
+    from spacepy import coordinates as coord
+    from spacepy import time as tm
+    import datetime as dt
+    if time is None:
+        time = dt.datetime.now()
+
+    (alt, lat, lon) = (loc_sph[0], loc_sph[1], loc_sph[2])
+    (N, E, D) = (dir_NED[0], dir_NED[1], dir_NED[2])
+
+
+    p1_sph = coord.Coords([[EARTH_RAD + alt, lat, lon]],'GEO',
+                          'sph', units=['km','deg','deg'])
+    p1_sph.ticks = tm.Ticktock(time)
+    logging.info("loc GEO SPH: {0}".format(p1_sph))
+
+    # Make structure comparable to coord.Coords (+alt, lat, lon)
+    v = np.array([-D, N, E]) # same format as spherical GEO data
+    norm_v = v/np.linalg.norm(v)
+    logging.info("dir -DNE: {0}".format(norm_v))
+    p2_sph_data = p1_sph.data + 0.0001*(norm_v)
+
+    p2_sph = coord.Coords(p2_sph_data,'GEO','sph', units=['km','deg','deg'])
+
+    p1_sph.ticks = tm.Ticktock(time)
+    p2_sph.ticks = tm.Ticktock(time)
+
+    p1_car = p1_sph.convert('GEO','car')
+    p2_car = p2_sph.convert('GEO','car')
+
+    dr_car = (p2_car.data - p1_car.data)
+    dr_car = dr_car/np.linalg.norm(dr_car)
+    logging.info("dir GEO CAR: ".format(dr_car))
+    return dr_car[0]
+
+# pylint: disable=C0103
+if __name__=="__main__":
     """ TESTING INDEX OF REFRACTION-RELATED FUNCTIONS """
     freq10 = 1.0422E7   #[Hz]
     freq12 = 1.2500E7   #[Hz]
@@ -852,153 +943,173 @@ if __name__=="__main__":
     omega_c = 2*np.pi*1.3E6   # [rad/s]
     fof2_alt = 260. # [km]
 
-    lons,lats,alts,ephtimes = data_utils.get_rri_ephemeris(filename)
-    b_igrf = magnet_data.get_igrf(lons,lats,alts,ephtimes)
+    lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(filename)
+    b_igrf = magnet_data.get_igrf(lons, lats, alts, ephtimes)
 
     '''
     I'm primarily checking that the functions don't break in general, but the
     cases below check particular numbers in order to detect whether the data or
     the processing unexpectedly changes after some updates to things.
     '''
-    omega_c1 = improved_cyclotron_freq(lons,lats,alts,ephtimes,fof2_alt=280.)
+    omega_c1 = improved_cyclotron_freq(lons, lats, alts, ephtimes, fof2_alt=280)
     omega_c2 = cyclotron_freq(b_igrf)
     print("Beginning unit testing; be forewarned," \
         + " IGRF calls will plug up standard out...")
 
     # Test regular and improved cyclotron frequency functions
+    # ------------------
     if np.round(np.log10(omega_c2)) != 7 or np.round(np.log10(omega_c1)) != 7:
-        print("Error with cyclotron frequency calculations")
+        logging.error("Error with cyclotron frequency calculations")
 
     # Test plasma_freq(n_e)
+    # ------------------
     pf = plasma_freq(5E11)
     if np.round(np.log10(pf),3) != 7.601:
-        print("Error with plasma_freq()")
+        logging.error("Error with plasma_freq()")
 
     # Test basic_ionosphere_params
+    # ------------------
     w_c, w_p, l_d = basic_ionosphere_params(altitude=300.)
     if np.round(np.log10(w_p),1)!=7.8 or np.round(np.log10(w_c),1) != 7.0:
-        print("Error with basic ionosphere params")
+        logging.error("Error with basic ionosphere params")
 
     # Test appleton_coeffs
+    # ------------------
     # X should be about 0.25-0.3, Y about 0.1, Z about 0
-    X,Y,Z = appleton_coeffs(omega_c1, omega_p, freq10, 0.)
+    X, Y, Z = appleton_coeffs(omega_c1, omega_p, freq10, 0.)
     if np.round(X,2) != 0.33 or np.round(Y,2) != 0.13 or np.round(Z) != 0.:
-        print("Error with appleton_coeffs()")
+        logging.error("Error with appleton_coeffs()")
 
     # Test appleton_hartree
+    # ------------------
     theta = np.array(range(315))/100.
-    npl1,nmin1 = appleton_hartree(X,Y,Z,theta)
+    npl1, nmin1 = appleton_hartree(X, Y, Z, theta)
     if np.round(abs(npl1[0]),3)!=0.842 or np.round(abs(nmin1[0]),3)!=0.790:
-        print("Error with appleton_hartree()")
+        logging.error("Error with appleton_hartree()")
 
     # Test txpass_to_indices
-    angs_r,npl2,nmin2 = txpass_to_indices(lons,lats,alts,ephtimes,
-                                          txlon,txlat,freq10,omega_p,omega_c1)
+    # ------------------
+    angs_r, npl2, nmin2 = txpass_to_indices(lons, lats, alts, ephtimes, txlon,
+                                            txlat, freq10, omega_p, omega_c1)
     if np.round(np.mean(angs_r),3)!=2.320 or np.round(abs(npl2[0]),3)!=0.914:
-        print("Error with txpass_to_indices()")
+        logging.error("Error with txpass_to_indices()")
 
 
     """ TESTING DIRECTIONAL/EPHEMERIS-RELATED FUNCTIONS"""
 
     # Test get_bearing()
+    # ------------------
     # Correctness:
     tst_bearing1,__ = get_bearing(-106.,52.,-96.,52.)
     tst_bearing2,__ = get_bearing(-106.,52.,-106.,42.)
     if np.round(tst_bearing1,1) != 86.1 or np.round(tst_bearing2,1) != 180.:
-        print("Error calculating bearings")
+        logging.error("Error calculating bearings")
     # Parallelization:
     a = np.array([100.,100.,100.])
     b = np.array([45.,45.,45.])
     c = np.array([35.,55.,-45.])
-    bearings_i,bearings_f = get_bearing(a,b,a,c)
+    bearings_i, bearings_f = get_bearing(a, b, a, c)
     if (bearings_i != [180.,0.,180.]).any(): # if any entries incorrect...
-        print("Error with parallelized bearings calculation")
+        logging.error("Error with parallelized bearings calculation")
 
     # Test haversine:
+    # ------------------
     hav = haversine(50,50,60,60)
     if int(hav)!=1278: #corroborated with other calculators
-        print("Error with haversine()")
+        logging.error("Error with haversine()")
     # check parallelization
-    havs = haversine(a,b,a,c)
+    havs = haversine(a, b, a, c)
 
     # Test elevation_angle:
+    # ------------------
     elev_a = get_elevation_angle(-106.,52.,0.,-96.,52.,300.)
     if np.round(elev_a,2) != 23.68:
-        print("Error with get_elevation_angle()")
+        logging.error("Error with get_elevation_angle()")
 
     # Test rotation_matrix:
+    # ------------------
     rotA = np.round(rotation_matrix([1,0,0],-np.pi/6.),3)
     rotB = np.round(rotation_matrix([1,0,0],2*np.pi),3)
-    answerA = np.round(np.array([[1.,0.,0.],[0.,np.sqrt(3.)/2.,1/2.],
-                       [0,-1/2.,np.sqrt(3.)/2.]]),3)
+    answerA = np.round(np.array([[1.,0.,0.],[0., np.sqrt(3.)/2.,1/2.],
+                       [0,-1/2., np.sqrt(3.)/2.]]),3)
     answerB = np.round(np.array([[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]),3)
     if (rotA != answerA).any() or (rotB != answerB).any():
-        print("Error with rotation_matrix()")
+        logging.error("Error with rotation_matrix()")
 
     # Test get_kvecs:
-    kvs = get_kvecs(lons,lats,alts) # From Ottawa by default.
+    # ------------------
+    kvs = get_kvecs(lons, lats, alts) # From Ottawa by default.
     # I've already checked the validity of the April 21st data.
     # This test relies on it:
-    if (np.round((np.mean(kvs[:,0]),np.mean(kvs[:,1]),np.mean(kvs[:,2])),2) \
+    if (np.round((np.mean(kvs[:,0]), np.mean(kvs[:,1]), np.mean(kvs[:,2])),2) \
             != [0.09,0.05,-0.65]).any():
-        print("Error with get_kvecs()")
+        logging.error("Error with get_kvecs()")
 
     # Test get_igrf(): already called get_igrf earlier in this if__name__ block
-    #b_igrf = get_igrf(lons,lats,alts,ephtimes)
+    # ------------------
+    #b_igrf = get_igrf(lons, lats, alts, ephtimes)
     if (np.round(b_igrf[0]) != np.array([17858.,-3148.,39417.])).any():
-        print("Error with get_igrf()")
+        logging.error("Error with get_igrf()")
 
     # Test get_aspect_angle():
+    # ------------------
     kv_tst = np.array((1,2,3))
     bv_tst = np.array((2,30,7))
 
     # Test get_plasma_intersection():
+    # ------------------
     # Use a point directly north, check that intersections are also north
-    plasma_lon,plasma_lat = get_plasma_intersection(-75.552,48.403,370.)
+    plasma_lon, plasma_lat = get_plasma_intersection(-75.552,48.403,370.)
     if np.round(plasma_lon,1)!=-75.6 or np.round(plasma_lat,1)!=47.8:
-        print("Error with get_plasma_intersection")
+        logging.error("Error with get_plasma_intersection")
 
     # Test get_kb_angle():
+    # ------------------
     # Already tested successfully earlier by doing tx_pass_indices
-    #bvs,kvs,angles_r = get_kb_angle
+    #bvs, kvs, angles_r = get_kb_angle
 
     # Test get_kdip_angles():
+    # ------------------
     #TODO: test and *validate*!
-    (lons,lats,alts,ephtimes,mlons,mlats,mlts,pitch,yaw,roll) = \
+    (lons, lats, alts, ephtimes, mlons, mlats, mlts, pitch, yaw, roll) = \
         data_utils.get_rri_ephemeris_full(filename)
-    dipole_dirs, kdip_angles = get_kdip_angles(lons,lats,alts,ephtimes,
-                                               pitch,yaw,roll)
+    dipole_dirs, kdip_angles = get_kdip_angles(lons, lats, alts, ephtimes,
+                                               pitch, yaw, roll)
 
     # Test get_ramdirs():
-    vs,dists = get_ramdirs(lons,lats,alts)
+    # ------------------
+    vs, dists = get_ramdirs(lons, lats, alts)
     if (np.round(vs[0][0],3)!=7.442) or (np.round(dists[-1],3)!=7.419):
-        print("Error with get_ramdirs")
+        logging.error("Error with get_ramdirs")
 
     # Test get_closest_approach:
-    index_closest,dists = get_closest_approach(lons,lats,alts)
+    # ------------------
+    index_closest, dists = get_closest_approach(lons, lats, alts)
     if (index_closest!=103) or np.round(dists[-1],2)!=1049.97:
-        print("Error with get_closest_approach")
+        logging.error("Error with get_closest_approach")
 
 
     # Test faraday_trace
-    datarr,datlats = data_utils.load_density_profile(
+    # ------------------
+    datarr, datlats = data_utils.load_density_profile(
                         './data/20160418-densities.txt')
-    tec,bcs,ql_int,faraday_int = faraday_trace(lons[0],lats[0],alts[0],
-                                               ephtimes[0],datarr,datlats)
+    tec, bcs, ql_int, faraday_int = faraday_trace(lons[0], lats[0], alts[0],
+                                               ephtimes[0], datarr, datlats)
     # validated calculations by noting similarity of numbers with Rob's
     if np.round(np.log10(tec),3)!=17.198:
-        print("Error with faraday_trace")
+        logging.error("Error with faraday_trace")
 
     # Some extra stuff I want to do for analysis at the bottom here...
     # Load Rob Gillies' ephemeris he used for his ray trace plots
-    Roblons,Roblats,Robalts = data_utils.load_rob_ephemeris(
+    Roblons, Roblats, Robalts = data_utils.load_rob_ephemeris(
                                 './data/satcoords_20160418.txt')
     # Load ephemeris from 20160418 for ray trace plots and plasma
     # intersection testing
-    lons18,lats18,alts18,ephtimes18 = data_utils.get_rri_ephemeris(
+    lons18, lats18, alts18, ephtimes18 = data_utils.get_rri_ephemeris(
         data_utils.get_ottawa_data('20160418')[0])
 
     # For validating get_plasma_intersection manually by plotting etc.
+    # Validate get_plasma_intersection manually in OttawaPlots.ipynb
     plons=[]
     plats=[]
     i = 19
@@ -1006,17 +1117,84 @@ if __name__=="__main__":
     lat18 = lats18[i]
     alt18 = alts18[i]
     ephtime18 = ephtimes18[i]
-    plalts = np.arange(60.,alt18)
+    time18 = ephem_to_datetime(ephtime18)
+    plalts = np.arange(60., alt18)
     for plalt in plalts:
-        plon,plat = get_plasma_intersection(lon18,lat18,alt18,plasma_alt=plalt)
+        plon, plat = get_plasma_intersection(lon18, lat18, alt18, plasma_alt=plalt)
         plons.append(plon)
         plats.append(plat)
 
 
+  
+    # Test dir_ned2geo 
+    # ----------------
+    from spacepy import coordinates as coord
+    from spacepy import time as tm
+    import datetime as dt
+    aas=[]
+    bbs=[]
+    for l in np.arange(-90.,90.):
+        a = coord.Coords([0., l,0.],'GEO','sph')
+        aas.append(a)
+        a.ticks = tm.Ticktock(dt.datetime.now())
+        b = a.convert('GEO','car')
+        bbs.append(b)
+
+    # Radially inward facing vector at each prime meridian pt (N, E, D)=(0,0,1)
+    dirs_geo = [ dir_ned2geo(aa.data[0],(0,0,1)) for aa in aas ]
+    tst1 = (np.round(dirs_geo[0],1)==(0.,0.,1.)).all()
+    tst2 = (np.round(dirs_geo[-1],1)==(0.,0.,-1.)).all()
+    tst3 = (np.round(dirs_geo[len(dirs_geo)/2],1)==(-1.,0.,0.)).all()
+    if not tst1 or not tst2 or not tst3:
+        logging.error("Error with dirs_ned2geo()")
+
+    # Test get_kvecs2
+    # ---------------
+    # Take the coords along the prime meridian 'p' and just take the triplets
+    p = [aa.data[0] for aa in aas]
+    # Convert point-to-point directions (each is 'north')
+    # get_kvec2(<lon>, <lat>, <alt>, <tx_lon= >, <tx_lat= >, <tx_alt= >)
+    kvs = [ get_kvec2(p[i][2], p[i][1], p[i][0], tx_lon=p[i-1][2],
+            tx_lat=p[i-1][1], tx_alt=p[i-1][0]) for i in np.arange(1, len(p))]
+    # Expect a northward dir at south pole =+x dir, at eq =+z, at north pole =-x
+    tst1 = (np.round(kvs[0],1)==(1.,0.,0.)).all()
+    tst2 = (np.round(kvs[-1],1)==(-1.,0.,0.)).all()
+    tst3 = (np.round(kvs[len(kvs)/2],1)==(0.,0.,1.)).all()
+    if not tst1 or not tst2 or not tst3:
+        logging.error("Error with get_kvecs2()")
+
+
     """ 
-    tecs,mean_bcs,ql_integrals,phase_integrals = faraday_pass(
-                lons18,lats18,alts18,ephtimes18,datarr,datlats)
+    tecs, mean_bcs, ql_integrals, phase_integrals = faraday_pass(
+                lons18, lats18, alts18, ephtimes18, datarr, datlats)
     plt.plot(phase_integrals); plt.show()
     """
+
+    ''' 
+    angs = []
+    angs2 = []
+    kvs = []
+    kvs2 = []
+    bvs = []
+    bvs2 = []
+    for i in range(len(alts18)):
+        lon18 = lons18[i]
+        lat18 = lats18[i]
+        alt18 = alts18[i]
+        ephtime18 = ephtimes18[i]
+        time18 = ephem_to_datetime(ephtime18)
+        kv2 = get_kvec2(lon18, lat18, alt18)
+        kvs2.append(kv2)
+        kv = get_kvecs(lon18, lat18, alt18)
+        kvs.append(kv)
+        bv2 = get_bvec2(lon18, lat18, alt18, time18)
+        bvs2.append(bv2)
+        ang2 = get_aspect_angle(kv2, bv2)
+        angs2.append(ang2)
+        bv = get_bvec(lon18, lat18, alt18, time18)
+        ang = get_aspect_angle(kv, bv)
+        angs.append(ang)
+        bvs.append(bv)
+    '''
  
     print("Tests complete!")
