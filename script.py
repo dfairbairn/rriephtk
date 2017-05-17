@@ -1,5 +1,6 @@
 """
 File: 'script.py'
+
 The preliminary workings for a script that will take an EPOP RRI HDF5 file and
 look at its geographic location in the data file, infer the nearby* SuperDARN
 radars for the duration of the dataset, and glean their setting data while 

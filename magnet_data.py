@@ -173,7 +173,7 @@ def ned2sc(ned_vecs,ram_dirs):
     outs = []
     for i in range(xdirs.__len__()):
 
-        intermed = ned_vecs[i] # Temporarily looking at what happens if I don't bother accounting for yaw/roll/pitch
+        intermed = ned_vecs[i] 
         A = np.array((xdirs[i],ydirs[i],zdirs[i]))
 
         #print "Spatial conversion matrix: ",A
