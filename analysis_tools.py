@@ -233,18 +233,18 @@ def txpass_to_indices(lons, lats, alts, ephtimes,
 #       pass.
 # -----------------------------------------------------------------------------
 
-def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
+def get_kvecs(lon, lat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
     """
-    This function takes a satellite ephemeris point(s) as input, calculating
-    the straight-line k-vector from a transmitter in terms of North (x),
-    East (y), Down (z) components.
+    Uses North-East-Down coordinates to get a direction vector from a 
+    transmitter to an ephemeris point in North-East-Down coordinates at
+    the ephemeris point location.
 
     Default values for the transmitter parameters are the coordinates of the
     Ottawa transmitter from the 18-22 April 2016 RRI experiments.
 
     *** PARAMS ***
-        glon (float or float array): longitude of point(s) from transmitter
-        glat (float or float array): latitude of point(s) from transmitter
+        lon (float or float array): longitude of point(s) from transmitter
+        lat (float or float array): latitude of point(s) from transmitter
         altitude (float or float array): altitude of point(s) from transmitter
         [tx_lon] (float): longitude of transmitter [deg]
         [tx_lat] (float): latitude of transmitter [deg]
@@ -255,24 +255,24 @@ def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
 
     WORKS WITH SINGLE POINTS AND NDARRAYS/LISTS
     """
-    vec_inp = True if (type(glon)==list or type(glon)==np.ndarray) else False
+    vec_inp = True if (type(lon)==list or type(lon)==np.ndarray) else False
 
-    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
+    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, lon, lat)
 
     # In spherical coordinates, subtracting vectors doesn't get us the path
     # from one point to another along the surface. To accomplish that, we use
     # bearings and elevation angles.
 
-    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, glon, glat)
+    init_bearing, final_bearing = get_bearing(tx_lon, tx_lat, lon, lat)
     if vec_inp:
-        txlons = np.ones(len(glon))*tx_lon
-        txlats = np.ones(len(glat))*tx_lat
+        txlons = np.ones(len(lon))*tx_lon
+        txlats = np.ones(len(lat))*tx_lat
         txalts = np.ones(len(altitude))*tx_alt
         elev_angle = get_elevation_angle(txlons, txlats, txalts,
-                                         glon, glat, altitude)
+                                         lon, lat, altitude)
     else:
         elev_angle = get_elevation_angle(tx_lon, tx_lat, tx_alt,
-                                         glon, glat, altitude)
+                                         lon, lat, altitude)
 
     # for calculation of vector components, we need theta (the bearing in the
     # N-E plane) at CASSIOPE, & phi, the angle-from-down (toward the N-E plane)
@@ -291,8 +291,20 @@ def get_kvecs(glon, glat, altitude, tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
 def get_kvec2(lon, lat, alt, ephtimes=None, 
               tx_lon=-75.552, tx_lat=45.403, tx_alt=.07):
     """
-    Uses cartesian coordinates to get absolute direction vector between
-    two (lon, lat, alt) points.
+    Uses cartesian coordinates (GEO XYZ) to get absolute direction 
+    vector between two (lon, lat, alt) points.
+
+    *** PARAMS ***
+        lon (float or array): longitude of point(s) from transmitter
+        lat (float or array): latitude of point(s) from transmitter
+        altitude (float or array): altitude of point(s) from transmitter
+        [tx_lon] (float): longitude of transmitter [deg]
+        [tx_lat] (float): latitude of transmitter [deg]
+        [tx_alt] (float): altitude of transmitter [km]
+    
+    *** RETURNS ***
+        kv (float or array): vector(s) from transmitter to input point(s)
+       
     """
     import spacepy.coordinates as coord
     import spacepy.time as tm
@@ -309,29 +321,32 @@ def get_kvec2(lon, lat, alt, ephtimes=None,
 
     b = b.convert('GEO','car')
     a = a.convert('GEO','car')
-    kv_other = (b.data - a.data)[0] 
-    kv_other = kv_other/np.linalg.norm(kv_other)
-    logging.info("get_kvecs2 result: ", kv_other)
-    return kv_other
+    kv = (b.data - a.data)[0] 
+    kv = kv/np.linalg.norm(kv)
+    logging.info("get_kvecs2 result: ", kv)
+    return kv
 
-def get_bvec(glon, glat, altitude, time):
+def get_bvec(lon, lat, altitude, time):
     """
-    This function uses the IGRF model in DavitPy to calculate the magnetic
+    This function uses the IGRF model in DavitPy to calculate the B
     field vector at a given near-Earth location at a particular time.
 
-    Currently, the function just takes geographic longitude and latitude. It
-    shouldn't be difficult to extend its functionality to accept magnetic
-    coordinates as well though.
+    The field vector returned is in North-East-Down coordinates from
+    the particular location's reference frame.
 
-    **PARAMS**
-    glon (Float): Geographic longitude of point
-    glat (Float): Geographic latitude of point
-    alt (Float): Altitude from Earth's surface in km
-    time (Datetime): Time of interest (magn. North's loc. varies year-to-year)
+    ** PARAMS **
+        lon (Float): Geographic longitude of point
+        lat (Float): Geographic latitude of point
+        alt (Float): Altitude from Earth's surface in km
+        time (Datetime): Time of interest (magnetic North's location
+                         varies year-to-year)
 
+    *** RETURNS ***
+        bv_ned (np.ndarray triplet of floats): magnetic field vector in
+                the geographic North-East-Down coordinate system.
 
-    **With production of 'get_igrf' function which can handle array inputs,
-        this function is now R E D U N D A N T**
+    **With production of 'get_igrf' function which handles array inputs,
+        this is now R E D U N D A N T except for individual use**
 
     """
     from davitpy.models import igrf
@@ -342,19 +357,37 @@ def get_bvec(glon, glat, altitude, time):
     stp = 1. #
     # The IGRF function takes a grid of latitude and longitude points for which
     # to calculate the field. We just want one point.
-    xlti, xltf, xltd = glat, glat, stp
-    xlni, xlnf, xlnd = glon, glon, stp
+    xlti, xltf, xltd = lat, lat, stp
+    xlni, xlnf, xlnd = lon, lon, stp
     ifl = 0 # Main field
     # Call fortran subroutine
-    lat, lon, d, s, h, bx, by, bz, f = igrf.igrf11(itype, date, alt, ifl,
+    lat_o, lon_o, d, s, h, bx, by, bz, f = igrf.igrf11(itype, date, alt, ifl,
                                            xlti, xltf, xltd, xlni, xlnf, xlnd)
-    # Unstifl= old_out
-    return np.array((bx[0], by[0], bz[0]))
+    bv_ned = np.array((bx[0], by[0], bz[0]))
+    return bv_ned
 
 def get_bvec2(lon, lat, alt, time):
+    """
+    A method for getting the Earth's B-vector in GEO X-Y-Z coordinates.
+
+    Uses the regular IGRF function for acquiring magnetic field, then 
+    converts it using dir_ned2geo().
+
+    *** PARAMS ***
+        lon (Float): Geographic longitude of point
+        lat (Float): Geographic latitude of point
+        alt (Float): Altitude from Earth's surface in km
+        time (Datetime): Time of interest (magnetic North's location
+                         varies year-to-year)
+
+    *** RETURNS ***
+        bv_geo (np.ndarray triplet of floats): magnetic field vector in
+                the geographic X Y Z coordinate system.
+    """
     bvec = get_bvec(lon, lat, alt, time)
-    logging.info('alt, lat, lon: ', alt, lat, lon)
     bv_geo = dir_ned2geo((alt, lat, lon), bvec, time=time)
+    logging.info('alt, lat, lon: ', alt, lat, lon)
+    logging.info('B_NED = {ned},\tB_XYZ = {xyz}'.format(ned=bvec, xyz=bv_geo))
     return bv_geo
 
 def get_igrf(lons, lats, alts, ephtimes):
@@ -890,9 +923,7 @@ def dir_ned2geo(loc_sph, dir_NED, time=None):
         [time]: time for which this applies [default: None] [datetime]
 
     *** RETURNS ***
-        GEI_x: direction component in GEI's X direction
-        GEI_y: direction component in GEI's Y direction
-        GEI_z: direction component in GEI's Z direction
+        dir_XYZ: direction component in cartesian GEO's X/Y/Z directions
 
     """
     from spacepy import coordinates as coord
@@ -901,20 +932,37 @@ def dir_ned2geo(loc_sph, dir_NED, time=None):
     if time is None:
         time = dt.datetime.now()
 
-    (alt, lat, lon) = (loc_sph[0], loc_sph[1], loc_sph[2])
     (N, E, D) = (dir_NED[0], dir_NED[1], dir_NED[2])
+    (alt, lat, lon) = (loc_sph[0], loc_sph[1], loc_sph[2])
+    (lt_r, ln_r) = (np.deg2rad(lat), np.deg2rad(lon))
+    dir_NED_arr = np.array(dir_NED)
 
+    # ( c_x )   ( -cos(phi)sin(theta) -sin(theta) -cos(phi)cos(theta) )( c_n )
+    # ( c_y ) = ( -sin(phi)sin(theta)  cos(theta) -sin(phi)cos(theta) )( c_e )
+    # ( c_z )   (       cos(theta)         0          -sin(theta)     )( c_d )
+    #
+    # Where phi is longitude (or ln_r) and theta is latitude (lt_r)
 
+    A_x = np.array(( -np.cos(ln_r)*np.sin(lt_r), -np.sin(lt_r), 
+                     -np.cos(ln_r)*np.cos(lt_r) ))
+    A_y = np.array(( -np.sin(ln_r)*np.sin(lt_r), np.cos(lt_r),
+                     -np.sin(ln_r)*np.cos(lt_r) ))
+    A_z = np.array(( np.cos(lt_r), 0, -np.sin(lt_r) ))
+    A = np.array([A_x, A_y, A_z])
+    dir_XYZ = np.dot(A,dir_NED_arr)
+    #print("dir_XYZ: \n",dir_XYZ)
+    
+    """
+    # Previously used horrible 'infinitesimal distance' method for conversion
     p1_sph = coord.Coords([[EARTH_RAD + alt, lat, lon]],'GEO',
                           'sph', units=['km','deg','deg'])
     p1_sph.ticks = tm.Ticktock(time)
     logging.info("loc GEO SPH: {0}".format(p1_sph))
-
     # Make structure comparable to coord.Coords (+alt, lat, lon)
     v = np.array([-D, N, E]) # same format as spherical GEO data
     norm_v = v/np.linalg.norm(v)
     logging.info("dir -DNE: {0}".format(norm_v))
-    p2_sph_data = p1_sph.data + 0.0001*(norm_v)
+    p2_sph_data = p1_sph.data + 0.0000001*(norm_v)
 
     p2_sph = coord.Coords(p2_sph_data,'GEO','sph', units=['km','deg','deg'])
 
@@ -927,7 +975,9 @@ def dir_ned2geo(loc_sph, dir_NED, time=None):
     dr_car = (p2_car.data - p1_car.data)
     dr_car = dr_car/np.linalg.norm(dr_car)
     logging.info("dir GEO CAR: ".format(dr_car))
-    return dr_car[0]
+    """
+    logging.info("dir_XYZ: \n{0}".format(dir_XYZ))
+    return dir_XYZ
 
 # pylint: disable=C0103
 if __name__=="__main__":
@@ -987,13 +1037,14 @@ if __name__=="__main__":
     if np.round(abs(npl1[0]),3)!=0.842 or np.round(abs(nmin1[0]),3)!=0.790:
         logging.error("Error with appleton_hartree()")
 
+    '''
     # Test txpass_to_indices
     # ------------------
     angs_r, npl2, nmin2 = txpass_to_indices(lons, lats, alts, ephtimes, txlon,
                                             txlat, freq10, omega_p, omega_c1)
     if np.round(np.mean(angs_r),3)!=2.320 or np.round(abs(npl2[0]),3)!=0.914:
         logging.error("Error with txpass_to_indices()")
-
+    '''
 
     """ TESTING DIRECTIONAL/EPHEMERIS-RELATED FUNCTIONS"""
 
@@ -1053,8 +1104,16 @@ if __name__=="__main__":
 
     # Test get_aspect_angle():
     # ------------------
+    a1 = np.array((1, 0, 0))
+    b1 = np.array((1, 1, 0))
+    c1 = np.array((-1, 0, 1))
     kv_tst = np.array((1,2,3))
     bv_tst = np.array((2,30,7))
+    tst1 = np.round(get_aspect_angle(a1, b1), 1)==45.0
+    tst2 = np.round(get_aspect_angle(a1, c1), 1)==135.0
+    tst3 = np.round(get_aspect_angle(kv_tst,bv_tst), 2)==44.06
+    if not tst1 or not tst2 or not tst3:
+        logging.error("Error with get_aspect_angle()")
 
     # Test get_plasma_intersection():
     # ------------------
@@ -1087,8 +1146,7 @@ if __name__=="__main__":
     index_closest, dists = get_closest_approach(lons, lats, alts)
     if (index_closest!=103) or np.round(dists[-1],2)!=1049.97:
         logging.error("Error with get_closest_approach")
-
-
+    """
     # Test faraday_trace
     # ------------------
     datarr, datlats = data_utils.load_density_profile(
@@ -1098,6 +1156,7 @@ if __name__=="__main__":
     # validated calculations by noting similarity of numbers with Rob's
     if np.round(np.log10(tec),3)!=17.198:
         logging.error("Error with faraday_trace")
+    """
 
     # Some extra stuff I want to do for analysis at the bottom here...
     # Load Rob Gillies' ephemeris he used for his ray trace plots
@@ -1124,31 +1183,51 @@ if __name__=="__main__":
         plons.append(plon)
         plats.append(plat)
 
-
   
     # Test dir_ned2geo 
     # ----------------
     from spacepy import coordinates as coord
     from spacepy import time as tm
     import datetime as dt
-    aas=[]
-    bbs=[]
-    for l in np.arange(-90.,90.):
-        a = coord.Coords([0., l,0.],'GEO','sph')
+    
+    # Test along the 0 degrees meridian (varies in X, Z directions)
+    aas = []
+    bbs = []
+    for l in np.arange(-90., 90.):
+        a = coord.Coords([0., l, 0.],'GEO','sph')
         aas.append(a)
         a.ticks = tm.Ticktock(dt.datetime.now())
-        b = a.convert('GEO','car')
+        b = a.convert('GEO', 'car')
         bbs.append(b)
 
-    # Radially inward facing vector at each prime meridian pt (N, E, D)=(0,0,1)
-    dirs_geo = [ dir_ned2geo(aa.data[0],(0,0,1)) for aa in aas ]
-    tst1 = (np.round(dirs_geo[0],1)==(0.,0.,1.)).all()
-    tst2 = (np.round(dirs_geo[-1],1)==(0.,0.,-1.)).all()
-    tst3 = (np.round(dirs_geo[len(dirs_geo)/2],1)==(-1.,0.,0.)).all()
+    # Radially inward vector at each prime meridian pt (N, E, D) = (0, 0, 1)
+    # Should go (0, 0, 1) to (-1, 0, 0) at 0 latitude to (0, 0, -1)
+    dirs_geo = [ dir_ned2geo(aa.data[0], (0, 0, 1)) for aa in aas ]
+    tst1 = (np.round(dirs_geo[0], 1)==(0., 0., 1.)).all()
+    tst2 = (np.round(dirs_geo[len(dirs_geo)/2], 1)==(-1., 0., 0.)).all()
+    tst3 = (np.round(dirs_geo[-1], 1)==(0., 0., -1.)).all()
     if not tst1 or not tst2 or not tst3:
         logging.error("Error with dirs_ned2geo()")
 
-    # Test get_kvecs2
+    # Test along the 90 degrees meridian (varies in Y, Z directions)
+    ccs = []
+    dds = []
+    for l in np.arange(-90., 90.):
+        c = coord.Coords([0., l, 90.],'GEO','sph')
+        ccs.append(c)
+        c.ticks = tm.Ticktock(dt.datetime.now())
+        d = a.convert('GEO', 'car')
+        dds.append(d)
+    # 'Northward' facing vector at each 90 deg meridian pt (N, E, D) = (1, 0, 0)
+    # Should go (0, 1, 0) to (0, 0, 1) to (0, -1, 0)
+    dirs_geo_2 = [ dir_ned2geo(cc.data[0], (1, 0, 0)) for cc in ccs ]
+    tst1 = (np.round(dirs_geo_2[0], 1)==(0., 1., 0.)).all()
+    tst2 = (np.round(dirs_geo_2[len(dirs_geo_2)/2], 1)==(0., 0., 1.)).all()
+    tst3 = (np.round(dirs_geo_2[-1], 1)==(0., -1., 0.)).all()
+    if not tst1 or not tst2 or not tst3:
+        logging.error("Error with dirs_ned2geo() bogooibiobjboj")
+
+    # Test get_kvec2
     # ---------------
     # Take the coords along the prime meridian 'p' and just take the triplets
     p = [aa.data[0] for aa in aas]
@@ -1163,38 +1242,56 @@ if __name__=="__main__":
     if not tst1 or not tst2 or not tst3:
         logging.error("Error with get_kvecs2()")
 
+    # Test get_bvec2
+    # ---------------
+    # Hard to test this function, as it basically just takes the get_bvec
+    # output and then converts it.
 
+    # For now I'll try comparing the angle between get_bvec2's vectors
+    # and get_kvec's vectors *after* they've been fed through the
+    # dir_ned2geo function. These should be the same as 'angs' below.
+    
+    # I have independently confirmed that bv and bv2 are equal below:
+    # bv = get_bvec(lon18, lat18, alt18, time18)
+    # bv_conv = dir_ned2geo((alt18, lat18, lon18), bv)
+    # bv2 = get_bvec2(lon18, lat18, alt18, time18)
+
+    
+    # ALSO: Testing output of approximate aspect angle method vs rigorous:
+    angs_apprx = []
+    angs_rigor = [] 
+    kvs = []
+    kvs2 = []
+    bvs = []
+    bvs2 = []
+    for i in range(len(alts18)):
+        # Particular location point
+        lon18 = lons18[i]
+        lat18 = lats18[i]
+        alt18 = alts18[i]
+        ephtime18 = ephtimes18[i]
+        time18 = ephem_to_datetime(ephtime18)
+        # Get the different versions of the line-of-sight vector
+        kv2 = get_kvec2(lon18, lat18, alt18)
+        kvs2.append(kv2)
+        kv = get_kvecs(lon18, lat18, alt18)
+        kvs.append(kv)
+        # Get the different versions of the magnetic field vector
+        bv2 = get_bvec2(lon18, lat18, alt18, time18)
+        bvs2.append(bv2)
+        bv = get_bvec(lon18, lat18, alt18, time18)
+        bvs.append(bv)
+        # Get the different ve
+        ang_rigor = get_aspect_angle(kv2, bv2)
+        angs_rigor.append(ang_rigor)
+        ang_apprx = get_aspect_angle(kv, bv)
+        angs_apprx.append(ang_apprx)
+    
     """ 
     tecs, mean_bcs, ql_integrals, phase_integrals = faraday_pass(
                 lons18, lats18, alts18, ephtimes18, datarr, datlats)
     plt.plot(phase_integrals); plt.show()
     """
 
-    ''' 
-    angs = []
-    angs2 = []
-    kvs = []
-    kvs2 = []
-    bvs = []
-    bvs2 = []
-    for i in range(len(alts18)):
-        lon18 = lons18[i]
-        lat18 = lats18[i]
-        alt18 = alts18[i]
-        ephtime18 = ephtimes18[i]
-        time18 = ephem_to_datetime(ephtime18)
-        kv2 = get_kvec2(lon18, lat18, alt18)
-        kvs2.append(kv2)
-        kv = get_kvecs(lon18, lat18, alt18)
-        kvs.append(kv)
-        bv2 = get_bvec2(lon18, lat18, alt18, time18)
-        bvs2.append(bv2)
-        ang2 = get_aspect_angle(kv2, bv2)
-        angs2.append(ang2)
-        bv = get_bvec(lon18, lat18, alt18, time18)
-        ang = get_aspect_angle(kv, bv)
-        angs.append(ang)
-        bvs.append(bv)
-    '''
- 
+
     print("Tests complete!")
