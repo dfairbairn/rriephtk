@@ -32,7 +32,7 @@ EL_MASS = 9.109E-31 #[kg]
 EPS0 = 8.8542E-12   #[A*s/(V*m)]
 EARTH_RAD = 6371.   #[km]
 
-logging.basicConfig(filename='./data/analysis-tools.log',level=logging.DEBUG)
+logging.basicConfig(filename='./data/analysis-tools.log',level=logging.WARNING)
 
 # -----------------------------------------------------------------------------
 #                       Index of Refraction-related Code
@@ -969,6 +969,8 @@ def dir_ned2geo(loc_sph, dir_NED, time=None):
     
     logging.info("dir_XYZ: \n{0}".format(dir_XYZ))
     return dir_XYZ
+
+
 
 # pylint: disable=C0103
 if __name__=="__main__":

@@ -117,7 +117,8 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
     plt.show()
  
 
-def plot_fov_sat(fovname, date, ephem_lons, ephem_lats, suppress_show=False):
+def plot_fov_sat(fovname, ephem_lons, ephem_lats, date=None, frontback='front',
+                 suppress_show=False, outfile_name=None):
     """
     This function uses matplotlib to conveniently plot a SuperDARN radar FOV 
     along with the EPOP's geographic coordinates, and saves the figure to an
@@ -133,7 +134,7 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats, suppress_show=False):
     ** RETURNS **
         - 
     """
-    fov = get_fov_by_name(fovname)
+    fov = get_fov_by_name(fovname, frontback=frontback)
     fovlons = ((fov.lonFull+360.)%360.).ravel()
     fovlats = (fov.latFull).ravel()
     fovcol = 3*np.ones(np.size(fovlons)) # 3 for blue FOVs
@@ -152,24 +153,33 @@ def plot_fov_sat(fovname, date, ephem_lons, ephem_lats, suppress_show=False):
     ephemlons = (ephem_lons+360.)%360.
     ephemlats = ephem_lats
 
-    plt.title(fovname + " Radar FOV vs RRI Ephemeris for " + date.__str__())
+    t = fovname + " Radar FOV vs RRI Ephemeris" 
+    if date is not None:
+        t = t + " for " + str(date)
+        # So that the formats match, I will ensure months and days are padded for
+        # the output figure's name as well.
+        month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
+        day = "0" + str(date.day) if str(date.day).__len__() == 1 else str(date.day)
+        hr = "0" + str(date.hour) if str(date.hour).__len__() == 1 else str(date.hour)
+        mn = "0" + str(date.minute) if str(date.minute).__len__() == 1 else str(date.minute)
+
+
+    plt.title(t)
     plt.xlabel('Geographic Longitude (degrees)')
     plt.ylabel('Geographic Latitude (degrees)')
 
-    # So that the formats match, I will ensure months and days are padded for
-    # the output figure's name as well.
-    month = "0" + str(date.month) if str(date.month).__len__() == 1 else str(date.month)
-    day = "0" + str(date.day) if str(date.day).__len__() == 1 else str(date.day)
-    hr = "0" + str(date.hour) if str(date.hour).__len__() == 1 else str(date.hour)
-    mn = "0" + str(date.minute) if str(date.minute).__len__() == 1 else str(date.minute)
-
     plt.plot(ephemlons,ephemlats,'r',label="RRI Ephemeris")
     plt.legend()
-    plt.savefig("./data/output/"+str(date.year)+month+day+"_"+hr+"h"+mn+"_"+fovname) 
+    if outfile_name is not None:
+        plt.savefig(outfile_name)
+    elif date is not None:
+        plt.savefig("./data/output/"+str(date.year)+month+day+"_"+hr+"h"+mn+"_"+fovname+".png") 
+    else:
+        plt.savefig("someplot.png")
     if suppress_show==False:
         plt.show()
     
-def get_fov_by_name(name):
+def get_fov_by_name(name,frontback='front'):
     """
     This function shortcuts the FOV creation process by handling assumptions I
     typically make when creating FOV objects.
@@ -177,7 +187,7 @@ def get_fov_by_name(name):
     ** ARGS **
         name (string): the name (as DaVitPy understands them) of a SuperDARN 
             radar whose FOV is to be returned.
-    
+        [frontback] (string): indicates whether to take front or back FOV 
     ** RETURNS **
         fov (pydarn.radar.radFov.fov): a (front) FOV object for the SuperDARN
             site with the given name.
@@ -187,7 +197,8 @@ def get_fov_by_name(name):
     rad = nw.getRadarByName(name)
     assert (rad != False) #if name is illegal, getRadarByName returns False
     site = pydarn.radar.site(radId = rad.id)
-    fov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',coords='geo',ngates=75)
+    fov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',
+                                  coords='geo',ngates=75,fov_dir=frontback)
     return fov
 
 def two_pad(in_time):
