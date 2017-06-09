@@ -160,7 +160,7 @@ print "\nTime required to compute detailed intersections by brute force: " + \
 # Output results to show things off:
 print "Start time: " + str(ephem_to_datetime(ephem_times[0]))
 print "End time: " + str(ephem_to_datetime(ephem_times[-1]))
-print "Radar | Fov (f or b), beam_f, gate_f, beam_b, gate_b"
+print "Radar | Fov (f or b), beam_start, gate_start, beam_end, gate_end"
 for r in relevant_radars:
     print r + ': ' + str(relevant_radars[r])
 
