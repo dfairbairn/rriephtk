@@ -9,8 +9,8 @@ Date: June 2016
 
 """
 import matplotlib.pyplot as plt
-import subprocess
-import numpy as np
+import subprocess 
+import numpy as np 
 import datetime as dt #A wrapper class for 'file' which tracks line numbers. 
 
 from davitpy.utils import plotUtils
@@ -214,6 +214,65 @@ def haversine(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a)) 
     r = 6371 # Radius of earth in kilometers. Use 3956 for miles
     return c * r
+
+
+def update_progress(progress):
+    """
+    # update_progress() : Displays or updates a console progress bar
+    Accepts a float between 0 and 1. Any int will be converted to a float.
+    A value under 0 represents a 'halt'.
+    A value at 1 or bigger represents 100%
+
+    Code by Brian Khuu
+    """
+    import time, sys
+    barLength = 10 # Modify this to change the length of the progress bar
+    status = ""
+    if isinstance(progress, int):
+        progress = float(progress)
+    if not isinstance(progress, float):
+        progress = 0
+        status = "error: progress var must be float\r\n"
+    if progress < 0:
+        progress = 0
+        status = "Halt...\r\n"
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+def block_output():
+    """
+    Have ridiculously long streams of output got you down? Call this to
+    block stdout for a process that's already running!
+
+    NOTE: block_output currently causes interactive sessions (ipython)
+    to crash (which is unfortunate because that's why I wrote this). 
+    """
+    ps = subprocess.Popen(('ps', '-e'), stdout=subprocess.PIPE)
+    output = subprocess.check_output(('grep', 'ipython'), stdin=ps.stdout)
+    pids = [ int(output.split()[i]) for i in range(len(output.split())) if i % 4 == 0 ]
+    unblock_cmds = []
+    for pid in pids:
+        nxt = subprocess.check_output(('reredirect','-m','./tmpfile.txt',str(pid)))
+        restore_cmd = nxt.split('\n')[1]
+        unblock_cmds.append(restore_cmd)
+    return unblock_cmds
+
+def unblock_output(unblock_cmds):
+    """
+    Unblocks the processes that were blocked by block_output.
+
+    NOTE: block_output currently causes interactive sessions (ipython)
+    to crash (which is unfortunate because that's why I wrote this). 
+    """
+    for u in unblock_cmds:
+        m = subprocess.check_output(u.split())
+    print("All unblocked!")
+
 
 """
 
