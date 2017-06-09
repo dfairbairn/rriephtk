@@ -249,6 +249,27 @@ def read_conjunctions(fname):
         conjs.append(conj)
     return conjs
 
+def fetch_radar_logs(fname):
+    """
+    Takes an RRI data file which has SuperDARN Conjunction tags added,
+    fetches SuperDARN 'errlog' files for any Canadian radars that are 
+    intersected.
+    """
+
+    conjs = read_conjunctions(fname)
+    uofs_rads = []
+    for c in conjs:
+        if c.name in ['Saskatoon', 'Prince George', 'Clyde River', 'Inuvik', 'Rankin Inlet']:
+            uofs_rads.append(c)
+   
+    data_path, data_fname = data_utils.initialize_data() 
+
+
+
+
+
+    return uofs_rads    
+
 if __name__ == "__main__":
     """
     If script is run directly with a RRI .h5 filename as an argument, then
