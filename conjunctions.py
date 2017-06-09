@@ -160,6 +160,31 @@ def tag_conjunctions(fname):
     Tags the ephemeris points in an RRI hdf5 file with SuperDARN 
     radars deemed to be nearby.
 
+    *** HDF5 Tag Structure ***
+    Added as a top-level group to the HDF5 file is a 
+    'SuperDARN Conjunctions' group.
+
+    Within this group will be groups for each radar whose FOV is 
+    considered to be intersected by the CASSIOPE Ephemeris. The radars 
+    will be listed by their SuperDARN Radar codes.
+
+    Within these groups will be:
+        - "Beam Extrema", representing bm_start and bm_end which are 
+            the edge beams of the SuperDARN FOV which are intersected 
+            in the dataset
+        - "Gate Extrama", representing gt_start and gt_end which are 
+            the extremes of the range gates of the SuperDARN FOV which 
+            are intersected in the dataset.
+        - "Intersection Quality", a 2 (good), 1 (moderate), or 0 (weak)
+            which indicates the proximity and degree of intersection of
+            the ephemeris through the FOV. (ideal: cross multiple beams
+            and be within 40 range gates)
+        - "Ephemeris Index Extrema", representing idx_start and idx_end
+            which are the first and last indices in the ephemeris data
+            of the hdf5 file that are formally intersecting the FOV.
+        - "Radar Name", showing the full name of this radar
+        - "Front or Back", showing whether or not the ephemeris track
+            intersects the front or back of the radar FOV
     """
     import h5py
     # First, acquire the conjunctions from this RRI data file (get_conjs)
@@ -182,11 +207,10 @@ def tag_conjunctions(fname):
         gi = g[str(c.code)]
         gi.create_dataset('Radar Name', data=[str(c.name)])
         gi.create_dataset('Intersection Quality', data=[hs[i]])
-        gi.create_dataset('Start Ephemeris Index', data=[c.idx_start])
-        gi.create_dataset('End Ephemeris Index', data=[c.idx_end])
-
+        gi.create_dataset('Ephemeris Index Extrema', data=[c.idx_start, c.idx_end])
         gi.create_dataset('Beam Extrema', data=[c.bm_start, c.bm_end])
         gi.create_dataset('Gate Extrema', data=[c.gt_start, c.gt_end])
+        gi.create_dataset('Front or Back', data=[c.forb])
     return None
 
 def eliminate_conjunctions(fname):
@@ -197,6 +221,33 @@ def eliminate_conjunctions(fname):
     import h5py
     f = h5py.File(fname)
     del f['SuperDARN Conjunctions']
+
+def read_conjunctions(fname):
+    """
+    Takes an hdf5 file with SuperDARN Conjunctions tagged and extracts
+    the conjunctions objects from it.
+    """
+    import h5py
+    f = h5py.File(fname)
+    try:
+        g = f['SuperDARN Conjunctions']
+    except KeyError:
+        logging.error("No SuperDARN Conjunction tags in RRI File")
+        return
+    conjs = []
+    for k in g.keys():
+        ci = g[k]
+        code = k
+        name = ci['Radar Name'].value[0]
+        bm_st, bm_end = ci['Beam Extrema'].value
+        gt_st, gt_end = ci['Gate Extrema'].value
+        idx_st, idx_end = ci['Ephemeris Index Extrema'].value
+        qual = ci['Intersection Quality'].value[0]
+        forb = ci['Front or Back'].value[0]
+        conj = RRISuperdarnConjunction(code, name, forb, bm_st, gt_st,
+                                       bm_end, gt_end, idx_st, idx_end)
+        conjs.append(conj)
+    return conjs
 
 if __name__ == "__main__":
     """
