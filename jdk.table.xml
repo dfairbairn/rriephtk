@@ -1,0 +1,36 @@
+<application>
+  <component name="ProjectJdkTable">
+    <jdk version="2">
+      <name value="Python 2.7.12 (/usr/bin/python2.7)" />
+      <type value="Python SDK" />
+      <version value="Python 2.7.12" />
+      <homePath value="/usr/bin/python2.7" />
+      <roots>
+        <classPath>
+          <root type="composite">
+            <root type="simple" url="file:///usr/lib64/python2.7" />
+            <root type="simple" url="file:///usr/lib64/python2.7/plat-linux2" />
+            <root type="simple" url="file:///usr/lib64/python2.7/lib-tk" />
+            <root type="simple" url="file:///usr/lib64/python2.7/lib-dynload" />
+            <root type="simple" url="file://$USER_HOME$/.local/lib/python2.7/site-packages" />
+            <root type="simple" url="file:///usr/lib64/python2.7/site-packages" />
+            <root type="simple" url="file:///usr/lib64/python2.7/site-packages/PIL" />
+            <root type="simple" url="file:///usr/lib64/python2.7/site-packages/davitpy-0.6-py2.7-linux-x86_64.egg" />
+            <root type="simple" url="file:///usr/lib64/python2.7/site-packages/gtk-2.0" />
+            <root type="simple" url="file:///usr/lib/python2.7/site-packages" />
+            <root type="simple" url="file:///usr/lib/python2.7/site-packages/pyAMISR-1.0-py2.7.egg" />
+            <root type="simple" url="file:///usr/lib/python2.7/site-packages/networkx-1.11-py2.7.egg" />
+            <root type="simple" url="jar:///usr/lib/python2.7/site-packages/setuptools-25.2.0-py2.7.egg!/" />
+            <root type="simple" url="jar:///usr/lib/python2.7/site-packages/Mnemosyne-2.3.6-py2.7.egg!/" />
+            <root type="simple" url="file://$USER_HOME$/.PyCharm2016.1/system/python_stubs/-1247972723" />
+            <root type="simple" url="file://$APPLICATION_HOME_DIR$/helpers/python-skeletons" />
+          </root>
+        </classPath>
+        <sourcePath>
+          <root type="composite" />
+        </sourcePath>
+      </roots>
+      <additional />
+    </jdk>
+  </component>
+</application>
