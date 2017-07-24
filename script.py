@@ -239,7 +239,7 @@ import  bz2
 
 for u in uofs_rads:
     rcode = (nw.getRadarByName(u)).code[0]
-    plot_fov_sat(u,start,geog_longs,geog_lats,suppress_show=True) 
+    #plot_fov_sat(u,geog_longs,geog_lats,date=start,suppress_show=True) 
 
     """
     fname_bz2 = str(start.year) + str(st_month) + str(st_day) + "." + rcode + ".errlog.bz2"

@@ -31,9 +31,24 @@ import numpy as np
 
 import data_utils
 import script_utils
+from script_utils import two_pad
 import range_cells
 
-logging.basicConfig(filename='conjunctions.log',level=logging.ERROR)
+LOG_FILE = 'conjunctions.log'
+OUTPUT_DIR = "./data/output"
+LOG_LEVEL = logging.DEBUG
+
+logFormatter = logging.Formatter('%(levelname)s %(asctime)s: %(message)s')
+rLogger = logging.getLogger(__name__)
+rLogger.setLevel(LOG_LEVEL)
+
+fileHandler = logging.FileHandler("./{0}".format(LOG_FILE))
+fileHandler.setFormatter(logFormatter)
+rLogger.addHandler(fileHandler)
+
+logging.basicConfig(level=LOG_LEVEL,
+    format='%(levelname)s %(asctime)s: %(message)s', 
+    datefmt='%m/%d/%Y %I:%M:%S %p')
 
 class RRISuperdarnConjunction:
     """
@@ -101,7 +116,6 @@ def get_conjunctions(fname):
     conjs = []
 
     start_t = timeit.default_timer()
-
     activerads = [rad for rad in nw.radars if rad.status==1]
 
     for i, rad in enumerate(activerads):
@@ -232,7 +246,7 @@ def read_conjunctions(fname):
     try:
         g = f['SuperDARN Conjunctions']
     except KeyError:
-        logging.error("No SuperDARN Conjunction tags in RRI File")
+        rLogger.error("No SuperDARN Conjunction tags in RRI File")
         return
     conjs = []
     for k in g.keys():
@@ -253,22 +267,126 @@ def fetch_radar_logs(fname):
     """
     Takes an RRI data file which has SuperDARN Conjunction tags added,
     fetches SuperDARN 'errlog' files for any Canadian radars that are 
-    intersected.
+    intersected, writing an output file that summarizes the conjunctions
+    and the relevant lines of the errlog records.
     """
-
+    nw = pydarn.radar.network()
     conjs = read_conjunctions(fname)
     uofs_rads = []
     for c in conjs:
         if c.name in ['Saskatoon', 'Prince George', 'Clyde River', 'Inuvik', 'Rankin Inlet']:
             uofs_rads.append(c)
-   
+  
+    # Load data 
     data_path, data_fname = data_utils.initialize_data() 
+    lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(data_fname)
+    times = script_utils.ephems_to_datetime(ephtimes)
+   
+    # Start creating the format strings
+    start = script_utils.ephem_to_datetime(ephtimes[0])
+    end = script_utils.ephem_to_datetime(ephtimes[-1])
+    start_str, end_str = start_end_strings(start, end)
 
+    for u in uofs_rads:
+        rcode = u.code
+        script_utils.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
 
+        f = data_utils.open_errlog(data_path, rcode, start) 
 
+        #TODO: Consider actually copying this Errlog file
+        start_line, end_line = start_end_lines(f, start_str, end_str)
+        rLogger.info("Start line: {0}\nEnd line: {1}".format(start_line, end_line))
 
+        # Having determined the relevant line of text in the errlog file, grab all the
+        # relevant errlog data spanning the ephemeris file
+        f.seekline(start_line) 
+        rel_lines = f.readline()
+        while f.line <= end_line:
+            rel_lines = rel_lines + f.readline()
 
+        time_tag = str(start.year) + two_pad(start.month) + two_pad(start.day) + \
+                    "_" + two_pad(start.hour) + two_pad(start.minute) 
+        out_fname = OUTPUT_DIR + "/" + time_tag + "_" + rcode + ".dat"
+
+        with open(out_fname, "w+") as f:
+            f.write("OUTPUT FILE FOR RRI CONJUNCTION SCRIPT\n")
+            f.write("======================================\n")
+            f.write("Start Time: " + str(start) + "\nEnd Time: " + str(end))
+            f.write("\nRRI File: "+ fname + "\n")
+        
+            for c in conjs:
+                f.write("\n" + str(c))
+            f.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
+            f.write(rel_lines)
+    
     return uofs_rads    
+
+def start_end_strings(start, end):
+    """
+    Takes datetime objects for the start and end of an RRI dataset, returns
+    the search strings to look for in SuperDARN .errlog files.
+    """
+    # ERRLOG files contain entries describing the beam number and frequency of 
+    # the transmission, occurring roughly every three seconds, starting on each 
+    # minute (at the ":00" mark).
+    #
+    # FURTHERMORE: the fact that the timestamps on SuperDARN data are untrustworthy
+    # means we need to look at SuperDARN information up to a few minutes before and
+    # after the RRI times of interest.
+    #
+    # Thus, this script will return all ERRLOG data starting *3* minutes before
+    # the RRI's first timestamp, and ending *3* minutes after the RRI's last
+    # timestamp, so as to give us some margin of error. The frequency that were
+    # transmitted upon will hopefully inform the user as to where the two time
+    # logs actually sync up.
+    
+    # Also, need to pad the datetime objects so that their format matches the 
+    # filename and timestamp formats for the ERRLOG files.
+    st_month = "0" + str(start.month) if str(start.month).__len__() == 1 else str(start.month)
+    st_day = "0" + str(start.day) if str(start.day).__len__() == 1 else str(start.day)
+    st_hour = "0" + str(start.hour) if str(start.hour).__len__() == 1 else str(start.hour)
+    end_hour = "0" + str(end.hour) if str(end.hour).__len__() == 1 else str(end.hour)
+    # Also, due to untrustworthy timestamps, we look at times in the ERRLOG file
+    # up to 3 minutes before and after the RRI times.
+    st_min = start.minute-3
+    end_min = end.minute+3
+    st_min = "0" + str(st_min) if str(st_min).__len__() == 1 else str(st_min)
+    end_min = "0" + str(end_min) if str(end_min).__len__() == 1 else str(end_min)
+    
+    start_string = " " + str(st_hour) + ":" +  str(st_min) + ":" # "00" # Omit seconds for now in case
+    end_string = " " + str(end_hour) + ":" + str(end_min) + ":" #"00" # they don't follow expected pattern
+    rLogger.info("Start and End strings to search for: {0}, {1}".format(start_string, end_string))
+    return start_string, end_string
+
+def start_end_lines(f, start_string, end_string):
+    """
+    Searches the errlog file pointed to by file handle f for the 
+    starting and ending intervals
+    """
+    # With the file open, search for the desired time interval's beginning.
+    # Search for the position of the first line of interest
+    found = False
+    while not found:
+        ln = f.readline()
+        #rLogger.debug("Line just read: {0}".format(ln))
+        if ln.find(start_string) != -1:
+            found = True
+            start_line = f.line
+            rLogger.info(str(start_line) + ": " + ln)
+    # Now search for the position of the final line of interest
+    found = False
+    while not found:
+        ln = f.readline()
+        if ln.find(end_string) != -1:
+            found = True
+            end_line = f.line
+            rLogger.info(str(end_line) + ": " + ln)
+        elif f.line > (start_line + 400): #1000000 bytes
+            end_line = start_line + 400 
+            found = True
+            rLogger.info(str(end_line) + ": " + ln)
+
+    return start_line, end_line
 
 if __name__ == "__main__":
     """
@@ -278,15 +396,15 @@ if __name__ == "__main__":
     """
     import sys
     print(sys.argv)
-    if len(sys.argv) > 1:
-        # An additional argument has been provided 
-        if type(sys.argv[1])==str:
-            try:
-                print("Privyet")
-                lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(sys.argv[1])
-            except:
-                print("Catch-all except statement. Something didn't work with loading the provided arg file")
-                exit()
-
-    conjs = get_conjunctions(sys.argv[1])
- 
+    if len(sys.argv) > 1 and type(sys.argv[1]) == str:
+    # An additional argument has been provided
+        try:
+            print("Attempting to read from .h5 file provided as argument...")
+            lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(sys.argv[1])
+        except:
+            print("Catch-all except statement. Something didn't work with loading the provided arg file")
+            exit()
+    try:
+        conjs = get_conjunctions(sys.argv[1])
+    except:
+        pass
