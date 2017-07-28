@@ -23,6 +23,7 @@ on average, discrete corrections that average about 0.5 seconds.
 
 import datetime as dt
 import numpy as np
+import matplotlib.pyplot as plt
 
 import os
 import subprocess
@@ -262,6 +263,7 @@ def determine_offset(pulse_times_a, pulse_seqs_a, pulse_times_b, pulse_seqs_b):
     [3,4,3,2]
 
     """
+    #TODO: Finish this function
     return -1, 0
 
 def determine_shift_offset(lst_a, lst_b):
@@ -322,12 +324,14 @@ def determine_shift_offset(lst_a, lst_b):
         overlap_shifts.append(i+1)
     #print overlap_scores # Less output
     #print overlap_shifts
-    return best_overlap_index, 0.5  
+    return best_overlap_index
     #TODO: Confidence/quality of answer???
 
 def evaluate_difference(lst_a, lst_b):
     """
     Determines how much overlap there is between the two input lists.
+
+    Essentially a value function to maximize.
     """
     assert isinstance(lst_a, list)
     assert isinstance(lst_b, list)
@@ -380,24 +384,46 @@ stamp_allpulses,stamp_seqtimes,stamp_pseqs = identify_sequences(stamp_dtimes,sta
 # Reading the ERRLOG data!
 errl_seqtimes,errl_pseqs = get_errl_pulses(file_errl, start, end)    
 
+print("\nNow defining custom lists lista and listb...")
 
 lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
 listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
 score = evaluate_difference(lista,listb)
-if round(score,3)!=0.571:
-    print "Difference evaluation: " + str(score)
+print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
 shift = determine_shift_offset(lista,listb)
+print("determined shift offset: {0}".format(shift))
 
-for i in range(70):
-    print str(stamp_seqtimes[i]) + "\t" + str(stamp_pseqs[i]) + "\t" + str(errl_pseqs[i]) + "\t" + str(errl_seqtimes[i])
-print "\n\n"
-for i in range(70):
-    print str(stamp_seqtimes[-1-i]) + "\t" + str(stamp_pseqs[-1-i]) + "\t" + str(errl_pseqs[-1-i]) + "\t" + str(errl_seqtimes[-1-i])
+errl_pseqs_ab = errl_pseqs[:len(stamp_pseqs)]
+errl_seqtimes_ab = errl_seqtimes[:len(stamp_seqtimes)]
+print("\nNow printing timestamper and errlog sequences and times" + 
+    " near the start and end to show their alignment...".format(len(errl_seqtimes)))
+for i in np.arange(28,42):
+    stamp_str = str(stamp_seqtimes[i]) + "\t" + str(stamp_pseqs[i])
+    errl_str = "\t" + str(errl_pseqs_ab[i]) + "\t" + str(errl_seqtimes[i])
+    print(stamp_str + errl_str)
+print("\n\n")
+for i in np.arange(60, 45, -1):
+    stamp_str = str(stamp_seqtimes[-1-i]) + "\t" + str(stamp_pseqs[-1-i])
+    errl_str = "\t" + str(errl_pseqs_ab[-1-i]) + "\t" + str(errl_seqtimes[-1-i])
+    print(stamp_str + errl_str)
 
+# TODO: figure out what I was going to do with these two lines:
 indx_del = 70
 chunks = int(errl_pseqs.__len__()/70.)
 
-y = visualize_list_difference(errl_pseqs, stamp_pseqs)
+# Run the stats on the equal-length versions of this data
+score = evaluate_difference(stamp_pseqs, errl_pseqs_ab)
+print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
+shift = determine_shift_offset(stamp_pseqs, errl_pseqs_ab)
+print("determined shift offset: {0}".format(shift))
+
+
+print("\nNow supposedly going to perform visualization of the list differences in terms of offset similarities")
+y = visualize_list_difference(errl_pseqs_ab, stamp_pseqs)
+plt.plot(100.0*np.array(y))
+plt.xlabel('Discrete rotations of list 1 vs list 2')
+plt.ylabel('Agreement (%)')
+plt.show()
 # Unmount the Maxwell remote mount.
 #os.system("fusermount -uq ./data/remote/")
 
