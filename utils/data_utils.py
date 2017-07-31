@@ -16,7 +16,11 @@ import subprocess
 import datetime as dt
 import logging 
 
-from script_utils import * # For two_pad... easily replaceable functionality
+RRITK_ROOT = ".."
+RRITK_DATA = RRITK_ROOT + "/data"
+RRITK_DATAOUT = RRITK_DATA + "/output"
+RRITK_REMOTE = RRITK_DATA + "/remote"
+DEFAULT_RRI = "RRI_20160418_222759_223156_lv1_v2.h5"
 
 class FileLineWrapper(object):
     """
@@ -75,31 +79,30 @@ def initialize_data():
         data_fname (string):    A string containing the path and filename for the
                                 RRI data e.g. ./data/RRI_20150402_032244_033241_lv1_v2.h5 
     """
+    # TODO: Try-Excepts in here, use of subprocess more, 
     # Test if directory structure with ./data, ./data/output, ./data/remote exist
-    if not os.path.isdir('./data'):
-        os.system('mkdir ./data')
+    if not os.path.isdir(RRITK_DATA):
+        os.system('mkdir ' + RRITK_DATA)
         print "Creating script directory 'data/'."
-    if not os.path.isdir('./data/output'):
-        os.system('mkdir ./data/output')
+    if not os.path.isdir(RRITK_OUTPUT):
+        os.system('mkdir ' + RRITK_OUTPUT)
         print "Creating script directory 'data/output/'."
-    if not os.path.isdir('./data/remote'):
-        os.system('mkdir ./data/remote')
+    if not os.path.isdir(RRITK_REMOTE):
+        os.system('mkdir ' + RRITK_REMOTE)
         print "Creating script directory 'data/remote/'."
 
     # Check which data file is to be used based on command-line arguments
-    # TODO: allow initialize_data() to take an RRI file arg, resolve conflict of command-line and functional args.
     import sys
     if sys.argv.__len__() == 2 and isinstance(sys.argv[1], str):
         dat_fname = sys.argv[1]
     else:
         print "No RRI file specified - going with default..."
-        dat_fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" # An RRI data file
-    
+        dat_fname = RRITK_DATA + "/" + DEFAULT_RRI 
     if not os.path.exists(dat_fname):
         print "No RRI file by that name. Exitting."
         exit()
 
-    # Check to see if we're running on Maxwell, and if not, mount Maxwell SuperDARN data remotely
+    # Check to see if we're on Maxwell.  If not, mount Maxwell SuperDARN data remotely
     if subprocess.check_output(["hostname"]) == "maxwell\n":
         print "Running on Maxwell: no remote mounting is necessary."
         data_path = "/data/" # If on Maxwell, don't do mounting
@@ -109,11 +112,11 @@ def initialize_data():
         # First, the script unmounts anything currently already mounted in the mounting
         # directory (using os.system so that if nothing is there it doesnt crash the 
         # script).
-        os.system("fusermount -uq ./data/remote/")
+        os.system("fusermount -uq " + RRITK_REMOTE)
         print "Accessing data files on maxwell, enter your password: "
-        output = subprocess.check_output(["sshfs", "fairbairn@maxwell.usask.ca:/data/","./data/remote"])
-        data_path = "./data/remote/" # Set the data path to where we just mounted Maxwell data
- 
+        output = subprocess.check_output(["sshfs", 
+                        "fairbairn@maxwell.usask.ca:/data/", RRITK_REMOTE])
+        data_path = DATA_REMOTE # Set the data path to where we just mounted Maxwell data
     return data_path,dat_fname
 
 def get_rri_ephemeris(dat_fname):
@@ -191,23 +194,23 @@ def get_ottawa_data(date_string):
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
-        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        fname = RRITK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
         index_reversal = 167 #for 18th # Stay
     elif "20160419"==date_string:
         #index_reversal = 178 #for 19th # Could go -1
         index_reversal = 177
-        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+        fname = RRITK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
         index_reversal = 213 #for 20th # Stay
-        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+        fname = RRITK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
         #index_reversal = 205 #?? for 21st? # Could go up +5
         index_reversal = 210
-        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+        fname = RRITK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
         #index_reversal = 222 #for 22nd # Could go down -1 
         index_reversal = 221
-        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+        fname = RRITK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print("Invalid input date.")
         return None    
@@ -231,25 +234,25 @@ def get_ottawa_data2(date_string):
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
-        fname = "./data/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        fname = RRITK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
         orientation_rev = 168 #for 18th # Stay
         ellipt_rev = 167
     elif "20160419"==date_string:
         orientation_rev = 177
         ellipt_rev = 158
-        fname = "./data/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+        fname = RRITK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
         orientation_rev  = 213 #for 20th # Stay
         ellipt_rev = 133 # ??? it also does something near 213 though
-        fname = "./data/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+        fname = RRITK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
         orientation_rev  = 210
         ellipt_rev = 125
-        fname = "./data/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+        fname = RRITK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
         orientation_rev  = 221
         ellipt_rev = 110 
-        fname = "./data/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+        fname = RRITK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print("Invalid input date.")
         return None    
@@ -423,7 +426,7 @@ def get_line_in_file(fl, srch_str):
     return line_num
 
 
-def list_mgf_files(path='data/mgf/'):
+def list_mgf_files(path=(RRITK_DATA + '/mgf/')):
     """ 
     Returns a list of the mgf files that can simply be indexed so as to easily
     grab complicated filenames.
@@ -448,11 +451,145 @@ def exit_rri():
     os.system("fusermount -uq ./data/remote/")
     sys.exit()
 
+# ----------------------------------------------------------------------------
+#                            General Data Utilities
+# ----------------------------------------------------------------------------
+
+def ephems_to_datetime(ephem_times):
+    """
+    This function allows a whole array of ephemeris times to be conveniently
+    converted in the same manner as with the ephem_to_datetime() function
+
+    ** ARGS **
+        ephem_times (numpy.array): array of Ephemeris MET (truncated JD times)
+
+    ** RETURNS **
+        times (list): list of datetime objects
+    """
+    if type(ephem_times)==list:
+        ephem_times = np.array(ephem_times)
+    if type(ephem_times)!=np.ndarray:
+        print("Not an array")
+        return None
+ 
+    # i) Check the seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s", "-u"])
+    t_off = float(t_off.split("\n",1)[0]) # extract the integer value
+
+    # ii) Do the math.
+    ephtimes = ephem_times + t_off
+    times = []
+    for i in range(np.size(ephtimes)):
+        times.append(dt.datetime.utcfromtimestamp(ephtimes[i]))
+    return times
+
+def ephem_to_datetime(ephem):
+    """
+    This function exists in order to conveniently convert the weird ephemeris
+    time data format from the EPOP RRI instrument into a datetime object.
+
+    *note*: makes use of the bash command 'date', so make sure you have it.
+
+    ** ARGS **
+        ephem (int): a large integer showing # of seconds since May 24 1968
+                    (must be greater than 0, smaller than sys.maxint)
+
+    ** RETURNS **
+        dtime (datetime.datetime): a datetime object for the time given in ephem 
+    """    
+    assert ephem >= 0
+    import numbers
+    assert isinstance(ephem, numbers.Number)
+
+    # i) Check # seconds between May 24 1968 (ephem MET) and Jan 1 1970 (neg number)
+    # -u parameter required to ensure offset is in UTC. +%s specifies output in seconds.
+    t_off = subprocess.check_output(["date", "--date=1968-05-24 0:00:00", "+%s", "-u"])
+    t_off = float(t_off.split("\n",1)[0]) # extract the integer value
+  
+    # ii) Do the math. 
+    dtime = dt.datetime.utcfromtimestamp(t_off + float(ephem))    
+    return dtime
+
+def get_fov_by_name(name,frontback='front'):
+    """
+    This function shortcuts the FOV creation process by handling assumptions I
+    typically make when creating FOV objects.
+
+    ** ARGS **
+        name (string): the name (as DaVitPy understands them) of a SuperDARN 
+            radar whose FOV is to be returned.
+        [frontback] (string): indicates whether to take front or back FOV 
+    ** RETURNS **
+        fov (pydarn.radar.radFov.fov): a (front) FOV object for the SuperDARN
+            site with the given name.
+    """
+    from davitpy import pydarn
+    nw = pydarn.radar.network()
+    rad = nw.getRadarByName(name)
+    assert (rad != False) #if name is illegal, getRadarByName returns False
+    site = pydarn.radar.site(radId = rad.id)
+    fov = pydarn.radar.radFov.fov(site=site,altitude=300.0,model='IS',
+                                  coords='geo',ngates=75,fov_dir=frontback)
+    return fov
+
+def two_pad(in_time):
+    """ 
+    Takes in a number of 1 or 2 digits, returns a string of two digits. 
+    """
+    assert isinstance(in_time,int)
+    assert (in_time < 100 and in_time >= 0)
+    return "0" + str(in_time) if str(in_time).__len__() == 1 else str(in_time)
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    from math import radians, cos, sin, asin, sqrt
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
+
+def update_progress(progress):
+    """
+    # update_progress() : Displays or updates a console progress bar
+    Accepts a float between 0 and 1. Any int will be converted to a float.
+    A value under 0 represents a 'halt'.
+    A value at 1 or bigger represents 100%
+
+    Code by Brian Khuu
+    """
+    import time, sys
+    barLength = 10 # Modify this to change the length of the progress bar
+    status = ""
+    if isinstance(progress, int):
+        progress = float(progress)
+    if not isinstance(progress, float):
+        progress = 0
+        status = "error: progress var must be float\r\n"
+    if progress < 0:
+        progress = 0
+        status = "Halt...\r\n"
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
 """
 TESTING
 """
 if __name__ == "__main__":
-    #data_path,dat_fname = initialize_data()
+    data_path,dat_fname = initialize_data()
 
     # Testing FileLineWrapper
     f = open('./script_utils.py','r')
@@ -473,9 +610,6 @@ if __name__ == "__main__":
     fw.seekline(0)
     fw.readline()
 
-    exit_rri()
-
-
     start = dt.datetime(2014,7,8,1,15,9)
     end = dt.datetime(2014,7,8,1,17,30)
     #start = dt.datetime(2014,7,8,1,0,0)
@@ -489,4 +623,25 @@ if __name__ == "__main__":
     #print get_line_in_file(file_stamps, '01:15')
 
     #TODO: automated tests on some of the new data access functions??? 
+   
+
+    # TESTS OF GENERAL DATA UTILITIES 
+    # Testing ephem_to_datetime():
+    tst_dt1 = dt.datetime(1968,5,24)
+    assert(ephem_to_datetime(0) == tst_dt1)
+    tst_dt2 = dt.datetime(2014,7,8,1,15,9)
+    num2 = 1455498909
+    assert(ephem_to_datetime(num2) == tst_dt2)
+ 
+    # Testing ephems_to_datetime():
+    assert(ephems_to_datetime(np.array([0,num2])) == [tst_dt1, tst_dt2])
+
+    # Testing two_pad():
+    assert(two_pad(3) == "03")
+    assert(two_pad(13) == "13")
+
+    # Testing get_fov_by_name():
+    from davitpy import pydarn
+    assert isinstance(get_fov_by_name("Saskatoon"),pydarn.radar.radFov.fov)
+
     exit_rri()
