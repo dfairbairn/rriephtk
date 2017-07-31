@@ -18,7 +18,7 @@ import logging
 
 RRITK_ROOT = ".."
 RRITK_DATA = RRITK_ROOT + "/data"
-RRITK_DATAOUT = RRITK_DATA + "/output"
+RRITK_OUTPUT = RRITK_DATA + "/output"
 RRITK_REMOTE = RRITK_DATA + "/remote"
 DEFAULT_RRI = "RRI_20160418_222759_223156_lv1_v2.h5"
 
@@ -116,8 +116,8 @@ def initialize_data():
         print "Accessing data files on maxwell, enter your password: "
         output = subprocess.check_output(["sshfs", 
                         "fairbairn@maxwell.usask.ca:/data/", RRITK_REMOTE])
-        data_path = DATA_REMOTE # Set the data path to where we just mounted Maxwell data
-    return data_path,dat_fname
+        data_path = RRITK_REMOTE + "/" # Set the data path to where we just mounted Maxwell data
+    return data_path, dat_fname
 
 def get_rri_ephemeris(dat_fname):
     """
@@ -371,7 +371,7 @@ def open_errlog(data_path, rcode, date):
         file_errl = open(fpath + fname_reg)
     else:
         logging.error("No ERRLOG file found!") 
-        exit()
+        return None
     return FileLineWrapper(file_errl)
 
 def open_tstamps(data_path, date):
@@ -448,7 +448,7 @@ def exit_rri():
         - none - 
     """
     import sys
-    os.system("fusermount -uq ./data/remote/")
+    os.system("fusermount -uq " + RRITK_REMOTE)
     sys.exit()
 
 # ----------------------------------------------------------------------------
@@ -466,6 +466,7 @@ def ephems_to_datetime(ephem_times):
     ** RETURNS **
         times (list): list of datetime objects
     """
+    import numpy as np
     if type(ephem_times)==list:
         ephem_times = np.array(ephem_times)
     if type(ephem_times)!=np.ndarray:
@@ -496,7 +497,7 @@ def ephem_to_datetime(ephem):
 
     ** RETURNS **
         dtime (datetime.datetime): a datetime object for the time given in ephem 
-    """    
+    """ 
     assert ephem >= 0
     import numbers
     assert isinstance(ephem, numbers.Number)
@@ -634,6 +635,7 @@ if __name__ == "__main__":
     assert(ephem_to_datetime(num2) == tst_dt2)
  
     # Testing ephems_to_datetime():
+    import numpy as np
     assert(ephems_to_datetime(np.array([0,num2])) == [tst_dt1, tst_dt2])
 
     # Testing two_pad():
