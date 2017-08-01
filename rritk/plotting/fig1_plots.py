@@ -1,5 +1,5 @@
-from data_utils import *
-from analysis_tools import *
+from rritk.utils.data_utils import *
+from rritk.analysis.analysis_tools import *
 from davitpy.utils import plotUtils
 
 from mpl_toolkits import basemap
@@ -355,6 +355,7 @@ def plot_all5(geographic=False, latspacing=10.):
     plt.savefig('tmp_all5.eps', format='eps', bbox_inches='tight')
     plt.savefig('tmp_all5.png', format='png', bbox_inches='tight')
     plt.show()
- 
-plot_all5(geographic=True, latspacing=10.)
-plot_all5(geographic=True, latspacing=5.)
+
+if __name__=="__main__": 
+    plot_all5(geographic=True, latspacing=10.)
+    plot_all5(geographic=True, latspacing=5.)

@@ -29,26 +29,12 @@ import math
 import datetime as dt
 import numpy as np
 
-import data_utils
-import script_utils
-from script_utils import two_pad
-import range_cells
+import __init__
+import rritk.utils.data_utils as data_utils
+import rritk.utils.range_cells as range_cells
+from rritk.utils.data_utils import two_pad
 
-LOG_FILE = 'conjunctions.log'
-OUTPUT_DIR = "./data/output"
-LOG_LEVEL = logging.DEBUG
-
-logFormatter = logging.Formatter('%(levelname)s %(asctime)s: %(message)s')
-rLogger = logging.getLogger(__name__)
-rLogger.setLevel(LOG_LEVEL)
-
-fileHandler = logging.FileHandler("./{0}".format(LOG_FILE))
-fileHandler.setFormatter(logFormatter)
-rLogger.addHandler(fileHandler)
-
-logging.basicConfig(level=LOG_LEVEL,
-    format='%(levelname)s %(asctime)s: %(message)s', 
-    datefmt='%m/%d/%Y %I:%M:%S %p')
+OUTPUT_DIR = data_utils.RRITK_OUTPUT
 
 class RRISuperdarnConjunction:
     """
@@ -104,7 +90,7 @@ def get_conjunctions(fname):
 
     """
     lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(fname)
-    times = script_utils.ephems_to_datetime(ephtimes)
+    times = data_utils.ephems_to_datetime(ephtimes)
 
     nw = pydarn.radar.network()
     results = dict()
@@ -135,6 +121,7 @@ def get_conjunctions(fname):
             non_nan_b = [n for n in range(np.size(bm_b)) if not math.isnan(bm_b[n])]
              
             if (non_nan_b.__len__() > 0):
+                rLogger.debug("Back field-of-view conjunction for {0}".format(rad))
                 start = non_nan_b[0] 
                 end = non_nan_b[ non_nan_b.__len__() - 1 ]
                 conjs.append(RRISuperdarnConjunction(
@@ -143,6 +130,7 @@ def get_conjunctions(fname):
                 relevant_radars[rad.name] = (rad.code[0],"back", bm_b[start],gt_b[start],bm_b[end],gt_b[end])
 
             if (non_nan_f.__len__() > 0):
+                rLogger.debug("Front field-of-view conjunction for {0}".format(rad))
                 start = non_nan_f[0]
                 end = non_nan_f[ non_nan_f.__len__() - 1 ]
                 conjs.append(RRISuperdarnConjunction(
@@ -152,21 +140,21 @@ def get_conjunctions(fname):
         
         #Show progress on screen
         sys.stdout.flush()
-        script_utils.update_progress((i+1)/float(len(activerads)))
+        data_utils.update_progress((i+1)/float(len(activerads)))
 
     end_t = timeit.default_timer()
-    print("\nTime req'd to compute detailed intersections by brute force: ",
-        str(end_t - start_t), " seconds.")
+    rLogger.info("\nTime req'd to compute detailed intersections by brute force: " + \
+        str(end_t - start_t) + " seconds.")
 
     # In general there will be a post-processing step in which only the 
     # conjunction results will be included in the output
     
     # Output results to show things off:
-    print("Start time: " + str(times[0]))
-    print("End time: " + str(times[-1]))
-    print("Radar | Fov (f or b), beam_start, gate_start, beam_end, gate_end")
+    rLogger.info("Start time: " + str(times[0]))
+    rLogger.info("End time: " + str(times[-1]))
+    rLogger.info("Radar | Fov (f or b), beam_start, gate_start, beam_end, gate_end")
     for r in relevant_radars:
-        print r + ': ' + str(relevant_radars[r])
+        rLogger.info(r + ': ' + str(relevant_radars[r]))
     return conjs
 
 def tag_conjunctions(fname):
@@ -225,7 +213,7 @@ def tag_conjunctions(fname):
         gi.create_dataset('Beam Extrema', data=[c.bm_start, c.bm_end])
         gi.create_dataset('Gate Extrema', data=[c.gt_start, c.gt_end])
         gi.create_dataset('Front or Back', data=[c.forb])
-    return None
+    pass
 
 def eliminate_conjunctions(fname):
     """
@@ -280,16 +268,17 @@ def fetch_radar_logs(fname):
     # Load data 
     data_path, data_fname = data_utils.initialize_data() 
     lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(data_fname)
-    times = script_utils.ephems_to_datetime(ephtimes)
+    times = data_utils.ephems_to_datetime(ephtimes)
    
     # Start creating the format strings
-    start = script_utils.ephem_to_datetime(ephtimes[0])
-    end = script_utils.ephem_to_datetime(ephtimes[-1])
+    start = data_utils.ephem_to_datetime(ephtimes[0])
+    end = data_utils.ephem_to_datetime(ephtimes[-1])
     start_str, end_str = start_end_strings(start, end)
 
     for u in uofs_rads:
         rcode = u.code
-        script_utils.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
+        # import rritk.plotting.plots as plots
+        #plots.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
 
         f = data_utils.open_errlog(data_path, rcode, start) 
 
@@ -304,8 +293,9 @@ def fetch_radar_logs(fname):
         while f.line <= end_line:
             rel_lines = rel_lines + f.readline()
 
-        time_tag = str(start.year) + two_pad(start.month) + two_pad(start.day) + \
-                    "_" + two_pad(start.hour) + two_pad(start.minute) 
+        time_tag = str(start.year) + two_pad(start.month) + \
+            two_pad(start.day) +  "_" + two_pad(start.hour) + \
+            two_pad(start.minute) 
         out_fname = OUTPUT_DIR + "/" + time_tag + "_" + rcode + ".dat"
 
         with open(out_fname, "w+") as f:
@@ -388,6 +378,31 @@ def start_end_lines(f, start_string, end_string):
 
     return start_line, end_line
 
+# ----------------------------------------------------------------------------- 
+
+def initialize_logger(quiet_mode=False):
+    """
+    Function for setting up the initial logging parameters
+
+    :param use_verbose: [boolean] flag indicating whether to be verbose.
+        ** If _not_ running parse/fetch requests from the command-line **
+    """
+    global rLogger
+    level = logging.INFO if quiet_mode else logging.DEBUG
+    LOG_FILE = 'conjunctions.log'
+
+    logging.basicConfig(level=level,
+        format='%(levelname)s %(asctime)s: %(message)s', 
+        datefmt='%m/%d/%Y %I:%M:%S %p')
+ 
+    logFormatter = logging.Formatter('%(levelname)s %(asctime)s: %(message)s')
+    rLogger = logging.getLogger(__name__)
+    rLogger.setLevel(level)
+
+    fileHandler = logging.FileHandler("./{0}".format(LOG_FILE))
+    fileHandler.setFormatter(logFormatter)
+    rLogger.addHandler(fileHandler)
+
 if __name__ == "__main__":
     """
     If script is run directly with a RRI .h5 filename as an argument, then
@@ -395,16 +410,20 @@ if __name__ == "__main__":
     intersections and spit them out.
     """
     import sys
-    print(sys.argv)
+    initialize_logger()
+    rLogger.info(sys.argv)
     if len(sys.argv) > 1 and type(sys.argv[1]) == str:
     # An additional argument has been provided
         try:
-            print("Attempting to read from .h5 file provided as argument...")
+            rLogger.info("Attempting to read from .h5 file provided as argument...")
             lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(sys.argv[1])
         except:
-            print("Catch-all except statement. Something didn't work with loading the provided arg file")
+            rLogger.info("Catch-all except statement. Something didn't work with loading the provided arg file")
             exit()
     try:
+        rLogger.info("Attempting to get conjunctions then!")
         conjs = get_conjunctions(sys.argv[1])
-    except:
+        rLogger.info("Conjunction output looks like: {0}".format(conjs))
+    except Exception as e:
+        rLogger.error("Getting conjunctions didn't work so well, exception thrown: {0}".format(e))
         pass

@@ -9,6 +9,13 @@ transmissions and data.
 """
 import logging
 
+# To allow us to say 'import rritk.utils', must put ../../ into path
+import os, sys
+rritk_dir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rritk_dir) 
+
+import rritk.utils.data_utils as data_utils
+
 try:
     import conjunctions
 except Exception as e:

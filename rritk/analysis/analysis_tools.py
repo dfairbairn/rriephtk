@@ -17,10 +17,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
-import data_utils
-import magnet_data
+import __init__ # 
+import rritk.utils.data_utils as data_utils
+from rritk.utils.data_utils import ephem_to_datetime, ephems_to_datetime 
 
-from script_utils import ephem_to_datetime, ephems_to_datetime 
+import magnet_data
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403
@@ -32,7 +33,7 @@ EL_MASS = 9.109E-31 #[kg]
 EPS0 = 8.8542E-12   #[A*s/(V*m)]
 EARTH_RAD = 6371.   #[km]
 
-logging.basicConfig(filename='./data/analysis-tools.log',level=logging.WARNING)
+logging.basicConfig(filename='analysis-tools.log',level=logging.WARNING)
 
 # -----------------------------------------------------------------------------
 #                       Index of Refraction-related Code
@@ -970,6 +971,31 @@ def dir_ned2geo(loc_sph, dir_NED, time=None):
     logging.info("dir_XYZ: \n{0}".format(dir_XYZ))
     return dir_XYZ
 
+# ----------------------------------------------------------------------------- 
+
+def initialize_logger():
+    """
+    Function for setting up the initial logging parameters
+
+    :param use_verbose: [boolean] flag indicating whether to be verbose.
+        ** If _not_ running parse/fetch requests from the command-line **
+    """
+    global rLogger
+    level = logging.INFO if quiet_mode else logging.DEBUG
+    LOG_FILE = 'conjunctions.log'
+
+    logging.basicConfig(level=level,
+        format='%(levelname)s %(asctime)s: %(message)s', 
+        datefmt='%m/%d/%Y %I:%M:%S %p')
+ 
+    logFormatter = logging.Formatter('%(levelname)s %(asctime)s: %(message)s')
+    rLogger = logging.getLogger(__name__)
+    rLogger.setLevel(level)
+
+    fileHandler = logging.FileHandler("./{0}".format(LOG_FILE))
+    fileHandler.setFormatter(logFormatter)
+    rLogger.addHandler(fileHandler)
+
 
 
 # pylint: disable=C0103
@@ -992,7 +1018,7 @@ if __name__=="__main__":
     # Some extra stuff I want to do for analysis at the bottom here...
     # Load Rob Gillies' ephemeris he used for his ray trace plots
     Roblons, Roblats, Robalts = data_utils.load_rob_ephemeris(
-                                './data/satcoords_20160418.txt')
+                                data_utils.RRITK_DATA + '/satcoords_20160418.txt')
     # Load ephemeris from 20160418 for ray trace plots and plasma
     # intersection testing
     lons18, lats18, alts18, ephtimes18 = data_utils.get_rri_ephemeris(
@@ -1044,7 +1070,8 @@ if __name__=="__main__":
         ang_apprx = get_aspect_angle(kv, bv)
         angs_apprx.append(ang_apprx)
     
-    datarr, datlats = data_utils.load_density_profile('./data/20160418-densities.txt')  
+    datarr, datlats = data_utils.load_density_profile(
+                        data_utils.RRITK_DATA + '/20160418-densities.txt')  
     tecs, mean_bcs, ql_integrals, phase_integrals = faraday_pass(
                 lons18, lats18, alts18, ephtimes18, datarr, datlats)
     plt.plot(phase_integrals); plt.show()

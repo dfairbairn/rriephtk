@@ -16,8 +16,20 @@ each file allows us to deduce correct times for the errlog data.
 Likely due to running old software (the QNX operating system) running on new 
 hardware at the radar site, the main SuperDARN system at a few locations 
 undergoes frequent and unpredictable timing corrections (e.g. every 5 minutes 
-on average, discrete corrections that average about 0.5 seconds. 
+on average, discrete corrections that average about 0.5 seconds.) 
 
+
+**CURRENT STATUS**:
+At the moment, this code is only useful to get a sense of how 'off' the 
+errlog data might be - full correction of the errlog data timestamps is 
+not implemented (although using the "shift_offset" in this code, it could
+be done). So it's only useful if you're trying to analyze really nitpicky
+issues of which beam/pulse sequence occurred when.
+
+Possible avenues to work on still here:
+- correcting and re-saving newly corrected errlog data*
+- more errlog file parsing: reading which i) transmit frequency,
+    which ii) beam, etc.
 
 """
 
@@ -29,10 +41,10 @@ import os
 import subprocess
 import logging
 
-from script_utils import *
-from data_utils import * # for initialize_data(), open_tstamps(), open_errlog()
-
-import bz2
+# for initialize_data(), open_tstamps(), open_errlog()
+import __init__
+import rritk.utils.data_utils as data_utils
+from rritk.utils.data_utils import two_pad
 
 # ======================= FUNCTIONS FOR TIME ALIGNMENT ========================
 
@@ -55,8 +67,8 @@ def get_stamp_pulses(file_stamps,start_time,end_time):
     #TODO: Find way to grab minute after the one of interest
     end_str = two_pad(end_time.hour) + ":" + two_pad(end_time.minute)
 
-    startln = get_line_in_file(file_stamps,strt_str)
-    endln = get_line_in_file(file_stamps,end_str)
+    startln = data_utils.get_line_in_file(file_stamps,strt_str)
+    endln = data_utils.get_line_in_file(file_stamps,end_str)
 
     print "Start line for search string of " + strt_str + ": " + str(startln)
     print "End line for search string of " + end_str + ": " + str(endln)
@@ -107,8 +119,8 @@ def get_errl_pulses(f_errl, start, end):
     #TODO: Find way to grab minute after the one of interest
     #end_str = two_pad(end.hour) + ":" + two_pad(end.minute + 1) + ":"
 
-    ln_start = get_line_in_file(f_errl, start_str)
-    ln_end = get_line_in_file(f_errl, end_str)
+    ln_start = data_utils.get_line_in_file(f_errl, start_str)
+    ln_end = data_utils.get_line_in_file(f_errl, end_str)
 
     print "Start line for search string of " + start_str + ": " + str(ln_start)
     print "End line for search string of " + end_str + ": " + str(ln_end)
@@ -298,7 +310,6 @@ def determine_shift_offset(lst_a, lst_b):
         # Optimal overlap already
         confidence = 1
         return best_overlap_index, confidence
-    #TODO: Should we collect several  ?
 
     overlap_scores = []
     overlap_shifts = []
@@ -347,7 +358,8 @@ def evaluate_difference(lst_a, lst_b):
 
 def visualize_list_difference(lst_a, lst_b):
     """
-
+    Returns a list of evaluate_difference() scores corresponding to different
+    relative shifts of lst_a and lst_b.
     """
     import collections
     l = lst_a
@@ -359,72 +371,80 @@ def visualize_list_difference(lst_a, lst_b):
          y.append(evaluate_difference(l,lst_b))
     return y
 
-
 # ========================= TIME ALIGNMENT SCRIPT =============================
+def perform_time_alignment_demo():
+    """
+    A demonstration script for making use of the various time alignment 
+    functions and testing their behaviour.
+    """
+    import matplotlib.pyplot as plt
+    data_path,dat_fname = data_utils.initialize_data() 
+    
+    #start = dt.datetime(2014,7,8,1,15,9)
+    #end = dt.datetime(2014,7,8,1,17,30)
+    start = dt.datetime(2016,4,18,0,30,0)
+    end = dt.datetime(2016,4,18,0,33,0)
+    
+    # Open the Timestamp data
+    file_stamps = data_utils.open_tstamps(data_path, start)
+    
+    # Open the Saskatoon Errlog
+    rcode = 'sas' # If we had another Timestamper, this could be an input parameter
+    file_errl = data_utils.open_errlog(data_path, rcode, start)
+    
+    # Reading Timestamp data, acquiring timing differences
+    stamp_ptimes,stamp_pulses = get_stamp_pulses(file_stamps, start, end)
+    stamp_dtimes,stamp_diffs = get_diffs(stamp_ptimes,stamp_pulses)
+    stamp_allpulses,stamp_seqtimes,stamp_pseqs = identify_sequences(stamp_dtimes,stamp_diffs) 
+    
+    # Reading the ERRLOG data!
+    errl_seqtimes,errl_pseqs = get_errl_pulses(file_errl, start, end)    
+    
+    print("\nNow defining custom lists lista and listb...")
+    
+    lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
+    listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
+    score = evaluate_difference(lista,listb)
+    print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
+    shift = determine_shift_offset(lista,listb)
+    print("determined shift offset: {0}".format(shift))
+    
+    errl_pseqs_ab = errl_pseqs[:len(stamp_pseqs)]
+    errl_seqtimes_ab = errl_seqtimes[:len(stamp_seqtimes)]
+    print("\nNow printing timestamper and errlog sequences and times" + 
+        " near the start and end to show their alignment...".format(len(errl_seqtimes)))
+    for i in np.arange(28,42):
+        stamp_str = str(stamp_seqtimes[i]) + "\t" + str(stamp_pseqs[i])
+        errl_str = "\t" + str(errl_pseqs_ab[i]) + "\t" + str(errl_seqtimes[i])
+        print(stamp_str + errl_str)
+    print("\n\n")
+    for i in np.arange(60, 45, -1):
+        stamp_str = str(stamp_seqtimes[-1-i]) + "\t" + str(stamp_pseqs[-1-i])
+        errl_str = "\t" + str(errl_pseqs_ab[-1-i]) + "\t" + str(errl_seqtimes[-1-i])
+        print(stamp_str + errl_str)
+    
+    # TODO: figure out what I was going to do with these two lines:
+    indx_del = 70
+    chunks = int(errl_pseqs.__len__()/70.)
+    
+    # Run the stats on the equal-length versions of this data
+    score = evaluate_difference(stamp_pseqs, errl_pseqs_ab)
+    print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
+    shift = determine_shift_offset(stamp_pseqs, errl_pseqs_ab)
+    print("determined shift offset: {0}".format(shift))
+    
+    
+    print("\nNow supposedly going to perform visualization of the list differences in terms of offset similarities")
+    y = visualize_list_difference(errl_pseqs_ab, stamp_pseqs)
+    plt.plot(100.0*np.array(y))
+    plt.xlabel('Discrete rotations of list 1 vs list 2')
+    plt.ylabel('Agreement (%)')
+    plt.show()
 
-data_path,dat_fname = initialize_data() 
+    # Unmount the Maxwell remote mount.
+    data_utils.exit_rri()
 
-#start = dt.datetime(2014,7,8,1,15,9)
-#end = dt.datetime(2014,7,8,1,17,30)
-start = dt.datetime(2016,4,18,0,30,0)
-end = dt.datetime(2016,4,18,0,33,0)
+# ----------------------------------------------------------------------------- 
 
-# Open the Timestamp data
-file_stamps = open_tstamps(data_path, start)
-
-# Open the Saskatoon Errlog
-rcode = 'sas' # If we had another Timestamper, this could be an input parameter
-file_errl = open_errlog(data_path, rcode, start)
-
-# Reading Timestamp data, acquiring timing differences
-stamp_ptimes,stamp_pulses = get_stamp_pulses(file_stamps, start, end)
-stamp_dtimes,stamp_diffs = get_diffs(stamp_ptimes,stamp_pulses)
-stamp_allpulses,stamp_seqtimes,stamp_pseqs = identify_sequences(stamp_dtimes,stamp_diffs) 
-
-# Reading the ERRLOG data!
-errl_seqtimes,errl_pseqs = get_errl_pulses(file_errl, start, end)    
-
-print("\nNow defining custom lists lista and listb...")
-
-lista = [7,8,8,8,8,7,8,8,8,8,7,8,8,8,8,7]
-listb = [8,8,8,7,8,8,8,8,7,8,8,8,8,7] 
-score = evaluate_difference(lista,listb)
-print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
-shift = determine_shift_offset(lista,listb)
-print("determined shift offset: {0}".format(shift))
-
-errl_pseqs_ab = errl_pseqs[:len(stamp_pseqs)]
-errl_seqtimes_ab = errl_seqtimes[:len(stamp_seqtimes)]
-print("\nNow printing timestamper and errlog sequences and times" + 
-    " near the start and end to show their alignment...".format(len(errl_seqtimes)))
-for i in np.arange(28,42):
-    stamp_str = str(stamp_seqtimes[i]) + "\t" + str(stamp_pseqs[i])
-    errl_str = "\t" + str(errl_pseqs_ab[i]) + "\t" + str(errl_seqtimes[i])
-    print(stamp_str + errl_str)
-print("\n\n")
-for i in np.arange(60, 45, -1):
-    stamp_str = str(stamp_seqtimes[-1-i]) + "\t" + str(stamp_pseqs[-1-i])
-    errl_str = "\t" + str(errl_pseqs_ab[-1-i]) + "\t" + str(errl_seqtimes[-1-i])
-    print(stamp_str + errl_str)
-
-# TODO: figure out what I was going to do with these two lines:
-indx_del = 70
-chunks = int(errl_pseqs.__len__()/70.)
-
-# Run the stats on the equal-length versions of this data
-score = evaluate_difference(stamp_pseqs, errl_pseqs_ab)
-print("'evaluate_difference' result on lista vs listb initially: {0}".format(score))
-shift = determine_shift_offset(stamp_pseqs, errl_pseqs_ab)
-print("determined shift offset: {0}".format(shift))
-
-
-print("\nNow supposedly going to perform visualization of the list differences in terms of offset similarities")
-y = visualize_list_difference(errl_pseqs_ab, stamp_pseqs)
-plt.plot(100.0*np.array(y))
-plt.xlabel('Discrete rotations of list 1 vs list 2')
-plt.ylabel('Agreement (%)')
-plt.show()
-# Unmount the Maxwell remote mount.
-#os.system("fusermount -uq ./data/remote/")
-
-exit_rri()
+if __name__ == "__main__":
+    perform_time_alignment_demo() 

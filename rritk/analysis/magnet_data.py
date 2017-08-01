@@ -5,8 +5,9 @@ date: September 2016
 Looking at Magnetometer data from ePOP during the Ottawa passes of April 2016.
 
 """
-from data_utils import *
-from analysis_tools import *
+import __init__
+import rritk.utils.data_utils as data_utils
+import analysis_tools
 import h5py
 
 sample_mgf_datafile = "data/mgf/MGF_20160418_222505_224033_V_01_00_00.1sps.GEI.lv3"
@@ -90,9 +91,9 @@ def satframe2ned(sc_vecs,ram_dirs,yaws,pitchs,rolls):
     # Step 2. Reverse rotate by amounts described in roll, pitch, yaw
     outs = []
     for i in range(xdirs.__len__()):
-        roll_rot = rotation_matrix(xdirs[i],np.deg2rad(-rolls[i]))
-        pitch_rot = rotation_matrix(ydirs[i], np.deg2rad(-pitchs[i]))
-        yaw_rot = rotation_matrix(zdirs[i], np.deg2rad(-yaws[i]))
+        roll_rot = analysis_tools.rotation_matrix(xdirs[i],np.deg2rad(-rolls[i]))
+        pitch_rot = analysis_tools.rotation_matrix(ydirs[i], np.deg2rad(-pitchs[i]))
+        yaw_rot = analysis_tools.rotation_matrix(zdirs[i], np.deg2rad(-yaws[i]))
         #print "Roll rotation matrix magnitude: ",np.linalg.norm(roll_rot) 
         #print "Pitch rotation matrix magnitude: ",np.linalg.norm(pitch_rot) 
         #print "Yaw rotation matrix magnitude: ",np.linalg.norm(yaw_rot) 
@@ -195,7 +196,7 @@ def get_igrf(lons,lats,alts,ephtimes):
     itype = 1 #Geodetic coordinates
     stp = 1. 
     ifl = 0
-    times = ephems_to_datetime(ephtimes)
+    times = data_utils.ephems_to_datetime(ephtimes)
     B_igrf = np.zeros((len(times),3))
     for i, time in enumerate(times):
         date = utils.dateToDecYear(time)
@@ -216,20 +217,20 @@ def cmp_igrf_magnetometer(fname=sample_mgf_datafile, date_string="20160418"):
     """
     # Set this to correspond to the mgf file at the top until mgf file selection is possible
     
-    datpath,datname = initialize_data()
-    rrifname,index_reversal = get_ottawa_data(date_string)
+    datpath,datname = data_utils.initialize_data()
+    rrifname,index_reversal = data_utils.get_ottawa_data(date_string)
     
     # Get RRI ephemeris data together so that we can remove effect of spacecraft direction
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(rrifname)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = data_utils.get_rri_ephemeris_full(rrifname)
     ephtimes = np.array([ round(e) for e in ephtimes]) # crucial for comparing mgf and rri times
-    vs,dists = get_ramdirs(lons, lats, alts)
+    vs,dists = analysis_tools.get_ramdirs(lons, lats, alts)
 
     # Calculate IGRF at each ephemeris point
     # import os
     # import sys
     # Redirect stdout so that IGRF can't print to the screen and spam me
     # sys.stdout = open(os.devnull, "w") # turns out it doesnt work because IGRF stuff is in fortran/handled separately
-    B_igrf,kvecs,angles = get_kb_angle(lons,lats,alts,ephtimes) 
+    B_igrf,kvecs,angles = analysis_tools.get_kb_angle(lons,lats,alts,ephtimes) 
     # sys.stdout = sys.__stdout__ # Reconnect stdout
 
     # TMP change! Leaving both arrays of B field measurements unchanged and playing with spacepy on them
@@ -237,14 +238,14 @@ def cmp_igrf_magnetometer(fname=sample_mgf_datafile, date_string="20160418"):
     B_igrf = np.array(B_igrf)
  
     # Acquire the MGF data
-    bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(fname)
+    bscx, bscy, bscz, ephtimes_bsc = data_utils.read_mgf_file(fname)
     B_mgf_intermediate = [ (bscx[i],bscy[i],bscz[i]) for i in range(len(bscx))]  
     print "Intermediate B_mgf first entry:\n",B_mgf_intermediate[0]
     print "Magnitude: ",np.linalg.norm(B_mgf_intermediate[0])
 
     # Need to compare the time of the different data sets 
-    times_rri =  ephems_to_datetime(ephtimes)
-    times_mgf = ephems_to_datetime(np.array(ephtimes_bsc))
+    times_rri =  data_utils.ephems_to_datetime(ephtimes)
+    times_mgf = data_utils.ephems_to_datetime(np.array(ephtimes_bsc))
  
     print "times_mgf's first few entries look like:\n",times_mgf[0:3]
     print "times_rri's first few entries look like:\n",times_rri[0:3] 
@@ -269,29 +270,29 @@ def plot_comparison(fname=sample_mgf_datafile, date_string="20160418"):
     Note: Currently the IGRF might not be correctly converted so the components
     won't be similar to each other at all.
     """
-    rri_fname,index_reversal = get_ottawa_data(date_string)
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(rri_fname)
+    rri_fname,index_reversal = data_utils.get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = data_utils.get_rri_ephemeris_full(rri_fname)
    
     B_mgf,B_igrf = cmp_igrf_magnetometer(fname,date_string)
     plt.plot(B_mgf[:,0],'b',label="MGF SC_X Component")
     plt.plot(B_igrf[:,0],'r',label="IGRF SC_X Component")
     plt.legend()
     plt.title("Comparison of B Component in SC_X Direction")
-    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    #ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
     plt.show()
 
     plt.plot(B_mgf[:,1],'b',label="MGF SC_Y Component")
     plt.plot(B_igrf[:,1],'r',label="IGRF SC_Y Component")
     plt.legend()
     plt.title("Comparison of B Component in SC_Y Direction")
-    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    #ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
     plt.show()
 
     plt.plot(B_mgf[:,2],'b',label="MGF SC_Z Component")
     plt.plot(B_igrf[:,2],'r',label="IGRF SC_Z Component")
     plt.legend()
     plt.title("Comparison of B Component in SC_Z Direction")
-    ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
+    #ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts)
     plt.show()
 
 if __name__ == "__main__":
@@ -302,14 +303,14 @@ if __name__ == "__main__":
     #plot_comparison()
 
     """
-    bscx, bscy, bscz, ephtimes_bsc = read_mgf_file(sample_mgf_datafile)
+    bscx, bscy, bscz, ephtimes_bsc = data_utils.read_mgf_file(sample_mgf_datafile)
     B_mgf = [ (bscx[i],bscy[i],bscz[i]) for i in range(len(bscx))]  
     #print B_mgf
  
     date_string = "20160418"
-    fname, index_reversal = get_ottawa_data(date_string)
-    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = get_rri_ephemeris_full(fname)
-    vs,dists = get_ramdirs(lons,lats,alts,ephtimes)   
+    fname, index_reversal = data_utils.get_ottawa_data(date_string)
+    lons,lats,alts,ephtimes,mlons,mlats,mlts,pitchs,yaws,rolls = data_utils.get_rri_ephemeris_full(fname)
+    vs,dists = analysis_tools.get_ramdirs(lons,lats,alts,ephtimes)   
     
     print B_mgf[0] 
     out = sc2ned2(B_mgf,vs,yaws,pitchs,rolls)

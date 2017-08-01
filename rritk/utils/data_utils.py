@@ -16,7 +16,9 @@ import subprocess
 import datetime as dt
 import logging 
 
-RRITK_ROOT = ".."
+import inspect
+print("inspect.stack output: {0}".format(inspect.stack()[0][1]))
+RRITK_ROOT = "../.."
 RRITK_DATA = RRITK_ROOT + "/data"
 RRITK_OUTPUT = RRITK_DATA + "/output"
 RRITK_REMOTE = RRITK_DATA + "/remote"
@@ -100,7 +102,7 @@ def initialize_data():
         dat_fname = RRITK_DATA + "/" + DEFAULT_RRI 
     if not os.path.exists(dat_fname):
         print "No RRI file by that name. Exitting."
-        exit()
+        return None, None
 
     # Check to see if we're on Maxwell.  If not, mount Maxwell SuperDARN data remotely
     if subprocess.check_output(["hostname"]) == "maxwell\n":
@@ -274,6 +276,7 @@ def load_density_profile(fname):
 
     """
     import pandas as pd
+    import numpy as np
     dat = pd.read_csv(fname)
     datarr2 = ([(d[0].split()) for d in dat.as_matrix()])
     datarr = []
@@ -332,6 +335,7 @@ def get_density(lon, lat, alt, datarr, datlats):
     ***RETURNS***
         <density> [float]: electron number density from the densities  array [m^-3] 
     """
+    import numpy as np
     if lat > np.max(datlats) or lat < np.min(datlats):
         #print("No data for that latitude - using closest latitude...")
         lat = np.max(datlats) if lat > np.max(datlats) else np.min(datlats)
@@ -585,6 +589,7 @@ def update_progress(progress):
     text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
     sys.stdout.write(text)
     sys.stdout.flush()
+
 
 """
 TESTING
