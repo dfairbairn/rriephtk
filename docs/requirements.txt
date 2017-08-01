@@ -1,0 +1,17 @@
+# This requirements.txt is just here to help readthedocs build its 
+# docstrings, it leaves out a couple necessary packages that cause 
+# troubles for readthedocs. 
+# Use the 'requirements.txt' file in the root of this project to
+# install (using 'pip install -r requirements.txt')
+sphinx>=1.6.2
+cycler==0.10.0
+setuptools>=36.2
+functools32==3.2.3.post2
+logging==0.4.9.6
+matplotlib==2.0.2
+numpy==1.13.1
+pyparsing==2.2.0
+python-dateutil==2.6.1
+pytz==2017.2
+six==1.10.0
+subprocess32==3.2.7
