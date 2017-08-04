@@ -18,10 +18,10 @@ import logging
 
 import inspect
 print("inspect.stack output: {0}".format(inspect.stack()[0][1]))
-RRITK_ROOT = "../.."
-RRITK_DATA = RRITK_ROOT + "/data"
-RRITK_OUTPUT = RRITK_DATA + "/output"
-RRITK_REMOTE = RRITK_DATA + "/remote"
+RRIEPHTK_ROOT = "../.."
+RRIEPHTK_DATA = RRIEPHTK_ROOT + "/data"
+RRIEPHTK_OUTPUT = RRIEPHTK_DATA + "/output"
+RRIEPHTK_REMOTE = RRIEPHTK_DATA + "/remote"
 DEFAULT_RRI = "RRI_20160418_222759_223156_lv1_v2.h5"
 
 class FileLineWrapper(object):
@@ -83,14 +83,14 @@ def initialize_data():
     """
     # TODO: Try-Excepts in here, use of subprocess more, 
     # Test if directory structure with ./data, ./data/output, ./data/remote exist
-    if not os.path.isdir(RRITK_DATA):
-        os.system('mkdir ' + RRITK_DATA)
+    if not os.path.isdir(RRIEPHTK_DATA):
+        os.system('mkdir ' + RRIEPHTK_DATA)
         print "Creating script directory 'data/'."
-    if not os.path.isdir(RRITK_OUTPUT):
-        os.system('mkdir ' + RRITK_OUTPUT)
+    if not os.path.isdir(RRIEPHTK_OUTPUT):
+        os.system('mkdir ' + RRIEPHTK_OUTPUT)
         print "Creating script directory 'data/output/'."
-    if not os.path.isdir(RRITK_REMOTE):
-        os.system('mkdir ' + RRITK_REMOTE)
+    if not os.path.isdir(RRIEPHTK_REMOTE):
+        os.system('mkdir ' + RRIEPHTK_REMOTE)
         print "Creating script directory 'data/remote/'."
 
     # Check which data file is to be used based on command-line arguments
@@ -99,7 +99,7 @@ def initialize_data():
         dat_fname = sys.argv[1]
     else:
         print "No RRI file specified - going with default..."
-        dat_fname = RRITK_DATA + "/" + DEFAULT_RRI 
+        dat_fname = RRIEPHTK_DATA + "/" + DEFAULT_RRI 
     if not os.path.exists(dat_fname):
         print "No RRI file by that name. Exitting."
         return None, None
@@ -114,11 +114,11 @@ def initialize_data():
         # First, the script unmounts anything currently already mounted in the mounting
         # directory (using os.system so that if nothing is there it doesnt crash the 
         # script).
-        os.system("fusermount -uq " + RRITK_REMOTE)
+        os.system("fusermount -uq " + RRIEPHTK_REMOTE)
         print "Accessing data files on maxwell, enter your password: "
         output = subprocess.check_output(["sshfs", 
-                        "fairbairn@maxwell.usask.ca:/data/", RRITK_REMOTE])
-        data_path = RRITK_REMOTE + "/" # Set the data path to where we just mounted Maxwell data
+                        "fairbairn@maxwell.usask.ca:/data/", RRIEPHTK_REMOTE])
+        data_path = RRIEPHTK_REMOTE + "/" # Set the data path to where we just mounted Maxwell data
     return data_path, dat_fname
 
 def get_rri_ephemeris(dat_fname):
@@ -196,23 +196,23 @@ def get_ottawa_data(date_string):
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
-        fname = RRITK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        fname = RRIEPHTK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
         index_reversal = 167 #for 18th # Stay
     elif "20160419"==date_string:
         #index_reversal = 178 #for 19th # Could go -1
         index_reversal = 177
-        fname = RRITK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+        fname = RRIEPHTK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
         index_reversal = 213 #for 20th # Stay
-        fname = RRITK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+        fname = RRIEPHTK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
         #index_reversal = 205 #?? for 21st? # Could go up +5
         index_reversal = 210
-        fname = RRITK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+        fname = RRIEPHTK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
         #index_reversal = 222 #for 22nd # Could go down -1 
         index_reversal = 221
-        fname = RRITK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+        fname = RRIEPHTK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print("Invalid input date.")
         return None    
@@ -236,25 +236,25 @@ def get_ottawa_data2(date_string):
 
     # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
     if "20160418"==date_string:
-        fname = RRITK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
+        fname = RRIEPHTK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
         orientation_rev = 168 #for 18th # Stay
         ellipt_rev = 167
     elif "20160419"==date_string:
         orientation_rev = 177
         ellipt_rev = 158
-        fname = RRITK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
+        fname = RRIEPHTK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
     elif "20160420"==date_string:
         orientation_rev  = 213 #for 20th # Stay
         ellipt_rev = 133 # ??? it also does something near 213 though
-        fname = RRITK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
+        fname = RRIEPHTK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
     elif "20160421"==date_string:
         orientation_rev  = 210
         ellipt_rev = 125
-        fname = RRITK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
+        fname = RRIEPHTK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
     elif "20160422"==date_string:
         orientation_rev  = 221
         ellipt_rev = 110 
-        fname = RRITK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
+        fname = RRIEPHTK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
     else:
         print("Invalid input date.")
         return None    
@@ -430,7 +430,7 @@ def get_line_in_file(fl, srch_str):
     return line_num
 
 
-def list_mgf_files(path=(RRITK_DATA + '/mgf/')):
+def list_mgf_files(path=(RRIEPHTK_DATA + '/mgf/')):
     """ 
     Returns a list of the mgf files that can simply be indexed so as to easily
     grab complicated filenames.
@@ -452,7 +452,7 @@ def exit_rri():
         - none - 
     """
     import sys
-    os.system("fusermount -uq " + RRITK_REMOTE)
+    os.system("fusermount -uq " + RRIEPHTK_REMOTE)
     sys.exit()
 
 # ----------------------------------------------------------------------------

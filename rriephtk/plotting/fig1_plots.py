@@ -1,5 +1,5 @@
-from rritk.utils.data_utils import *
-from rritk.analysis.analysis_tools import *
+from rriephtk.utils.data_utils import *
+from rriephtk.analysis.analysis_tools import *
 from davitpy.utils import plotUtils
 
 from mpl_toolkits import basemap

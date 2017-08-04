@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import logging
 
 import __init__ # 
-import rritk.utils.data_utils as data_utils
-from rritk.utils.data_utils import ephem_to_datetime, ephems_to_datetime 
+import rriephtk.utils.data_utils as data_utils
+from rriephtk.utils.data_utils import ephem_to_datetime, ephems_to_datetime 
 
 import magnet_data
 

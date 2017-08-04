@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from davitpy.utils import plotUtils
 
 import __init__
-import rritk.utils.data_utils as datautils
+import rriephtk.utils.data_utils as datautils
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403

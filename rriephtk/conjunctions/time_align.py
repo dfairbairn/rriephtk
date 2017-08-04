@@ -43,8 +43,8 @@ import logging
 
 # for initialize_data(), open_tstamps(), open_errlog()
 import __init__
-import rritk.utils.data_utils as data_utils
-from rritk.utils.data_utils import two_pad
+import rriephtk.utils.data_utils as data_utils
+from rriephtk.utils.data_utils import two_pad
 
 # ======================= FUNCTIONS FOR TIME ALIGNMENT ========================
 

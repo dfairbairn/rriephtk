@@ -30,9 +30,9 @@ import datetime as dt
 import numpy as np
 
 import __init__
-import rritk.utils.data_utils as data_utils
-import rritk.utils.range_cells as range_cells
-from rritk.utils.data_utils import two_pad
+import rriephtk.utils.data_utils as data_utils
+import rriephtk.utils.range_cells as range_cells
+from rriephtk.utils.data_utils import two_pad
 
 OUTPUT_DIR = data_utils.RRITK_OUTPUT
 
@@ -277,7 +277,7 @@ def fetch_radar_logs(fname):
 
     for u in uofs_rads:
         rcode = u.code
-        # import rritk.plotting.plots as plots
+        # import rriephtk.plotting.plots as plots
         #plots.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
 
         f = data_utils.open_errlog(data_path, rcode, start) 

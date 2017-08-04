@@ -6,7 +6,7 @@ Looking at Magnetometer data from ePOP during the Ottawa passes of April 2016.
 
 """
 import __init__
-import rritk.utils.data_utils as data_utils
+import rriephtk.utils.data_utils as data_utils
 import analysis_tools
 import h5py
 
