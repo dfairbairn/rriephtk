@@ -1,18 +1,31 @@
-# RRI-Toolkit
-A mini-toolkit for performing various analyses on RRI .h5 files from the 
-Radio Receiver Instrument in the ePOP scientific payload of the CASSIOPE satellite.
+# RRI-EphTK
+The RRI Ephemeris Toolkit (RRI-EphTK) is a mini-toolkit for performing various analyses 
+on .hdf5 files from the Radio Receiver Instrument (RRI) in the ePOP scientific payload of 
+the CASSIOPE satellite.
 
-Started out looking at *conjunctions* of the satellite data files coinciding with 
-fields of view of the SuperDARN radars (see conjunctions). Now includes plotting 
-tools, analytical tools for estimating various geometric features from transmitter 
-to RRI, and some ionospheric parameter modeling.
+This started out as a script looking at *conjunctions* of the satellite passes coinciding 
+with passing through the fields of view of the SuperDARN radars (see conjunctions). Now 
+it includes plotting tools, analytical tools for estimating various geometric features 
+from transmitter to RRI, and some ionospheric parameter modeling.
 
 This is a work-in-progress.
 
 
 **Install:**
 This tool has *not* been made particularly portable yet. A surefire automatic install
-process does not exist. However, setting up a virtual environment ( http://docs.python-guide.org/en/latest/dev/virtualenvs/ ) and then using "> pip install -r requirements.txt" should cover most of your needs.
+process does not exist. However, you _ought_ to be able to get it going by:
+i) Cloning this repository 
+> \> git clone http://github.com/dfairbairn/rriephtk
+
+ii) Setting up a virtual environment ( http://docs.python-guide.org/en/latest/dev/virtualenvs/ )
+> \> cd rriephtk
+
+> \> virtualenv env
+
+> \> source env/bin/activate
+
+iii) and then installing from the requirements.txt document here.
+> \> pip install -r requirements.txt
 
 The script will create several subdirectories for mounting and saving data:
 ./data, ./data/output, ./data/remote. It initially (when data_utils.initialize_data 
