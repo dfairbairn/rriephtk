@@ -6,6 +6,7 @@ A toolkit for analyzing RRI experiments.
 
 """
 import logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 try:
     import utils

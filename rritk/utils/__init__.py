@@ -8,6 +8,7 @@ but don't belong anywhere specifically
 
 """
 import logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 try:
     import data_utils

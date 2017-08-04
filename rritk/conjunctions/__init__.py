@@ -8,6 +8,7 @@ transmissions and data.
 
 """
 import logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # To allow us to say 'import rritk.utils', must put ../../ into path
 import os, sys
