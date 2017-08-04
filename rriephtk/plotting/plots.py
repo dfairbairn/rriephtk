@@ -33,7 +33,7 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
 
     """
     
-    if lons==None or lats==None or alts==None or ephtimes==None:
+    if lons is None or lats is None or alts is None or ephtimes is None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
             print "Need to provide either lons/lats/alts/ephtimes or date_string!"
             return -1

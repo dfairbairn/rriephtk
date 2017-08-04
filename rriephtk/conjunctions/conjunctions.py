@@ -34,7 +34,7 @@ import rriephtk.utils.data_utils as data_utils
 import rriephtk.utils.range_cells as range_cells
 from rriephtk.utils.data_utils import two_pad
 
-OUTPUT_DIR = data_utils.RRITK_OUTPUT
+OUTPUT_DIR = data_utils.RRIEPHTK_OUTPUT
 
 class RRISuperdarnConjunction:
     """
