@@ -15,17 +15,17 @@ This is a work-in-progress.
 This tool has *not* been made particularly portable yet. A surefire automatic install
 process does not exist. However, you _ought_ to be able to get it going by:
 i) Cloning this repository 
-> > git clone http://github.com/dfairbairn/rriephtk
+> \> git clone http://github.com/dfairbairn/rriephtk
 
 ii) Setting up a virtual environment ( http://docs.python-guide.org/en/latest/dev/virtualenvs/ )
-> > cd rriephtk
+> \> cd rriephtk
 
-> > virtualenv env
+> \> virtualenv env
 
-> > source env/bin/activate
+> \> source env/bin/activate
 
 iii) and then installing from the requirements.txt document here.
-> > pip install -r requirements.txt
+> \> pip install -r requirements.txt
 
 The script will create several subdirectories for mounting and saving data:
 ./data, ./data/output, ./data/remote. It initially (when data_utils.initialize_data 
