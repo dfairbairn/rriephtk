@@ -16,13 +16,16 @@ import subprocess
 import datetime as dt
 import logging 
 
-import inspect
-print("inspect.stack output: {0}".format(inspect.stack()[0][1]))
-RRIEPHTK_ROOT = "../.."
+RRIEPHTK_ROOT = os.path.dirname(os.path.realpath(__file__)) + "/../../"
 RRIEPHTK_DATA = RRIEPHTK_ROOT + "/data"
 RRIEPHTK_OUTPUT = RRIEPHTK_DATA + "/output"
 RRIEPHTK_REMOTE = RRIEPHTK_DATA + "/remote"
 DEFAULT_RRI = "RRI_20160418_222759_223156_lv1_v2.h5"
+
+logging.debug("Output of __file__: {0}".format(__file__))
+logging.debug("Output of path to __file__: {0}".format(
+                os.path.dirname(os.path.realpath(__file__))))
+logging.debug("RRIEPHTK_ROOT: {0}".format(RRIEPHTK_ROOT))
 
 class FileLineWrapper(object):
     """
@@ -66,6 +69,17 @@ class FileLineWrapper(object):
         """ Go to the nth line in the file. """ 
         self.line = line_num
         self.f.seek(self.line_offs[line_num-1])
+
+class JDEphemerisTime(float):
+    """
+    Giving a name to the truncated julian day ephemeris time used in RRI files.
+
+    ** Note: this might turn out to be an unnecessary effort if I completely
+            replace use of these by converting to datetimes in get_rri_ephemeris **
+    """
+    def __new__(cls, num):
+        logging.debug("num: {0}\ntype of num: {1}".format(num, type(num)))
+        return super(JDEphemerisTime, cls).__new__(cls, num) 
 
 def initialize_data():
     """

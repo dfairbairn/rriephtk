@@ -10,15 +10,17 @@ date: July 2017
 """
 
 import subprocess 
-import datetime as dt #A wrapper class for 'file' which tracks line numbers. 
+import datetime as dt
 
 import numpy as np 
 import matplotlib.pyplot as plt
+import logging
 
 from davitpy.utils import plotUtils
 
 import __init__
 import rriephtk.utils.data_utils as datautils
+from rriephtk.utils.data_utils import two_pad as tp
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403
@@ -29,10 +31,9 @@ data_path = '../rri-conjunction-script/data'
 
 def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=None):
     """
-
+    Attempt to give a nice ground-track 
 
     """
-    
     if lons is None or lats is None or alts is None or ephtimes is None:
         if date_string==None or not isinstance(date_string, type("e.g.")):
             print "Need to provide either lons/lats/alts/ephtimes or date_string!"
@@ -41,37 +42,31 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
         rri_fname,indx_rev = datautils.get_ottawa_data(date_string) 
         lons,lats,alts,ephtimes = datautils.get_rri_ephemeris(rri_fname)
     times=  datautils.ephems_to_datetime(ephtimes)
-    
+
+    datautils.update_progress(0.1)    
+
     # A different font for the legend etc. might be nice
     #fig = plt.figure()
     font = {'fontname':'Computer Modern'}
     m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=4.0*(max(lons) - min(lons))*1000*180, \
-                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='i',datetime=times[0])
+                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='c',datetime=times[0])
     # (the 1000* factors are to replace 1000 in how usually these are written as "width=111e3*180")
+
+    datautils.update_progress(0.3)
 
     x,y = m(lons,lats,coords='geo')
     m.plot(x,y,'b',label="ePOP ground track")
 
-    my_xticks = []
-    num_ticks = 5
-    length = times.__len__()
-    tick_sep = length/(num_ticks - 1)
-    alt_t = alts[0]
-    lon_t = lons[0]
-    lat_t = lats[0]
-    dt_t  = times[0]
-    my_xticks.append("Altitude:    "+str(alt_t)+"\nLatitude:    "+str(lat_t)+"\nLongitude:    "+str(lon_t)+"\nTime (UTC):    "+str(dt_t))
-    for i in range(num_ticks-1):
-        alt_t = alts[tick_sep*(i+1)]
-        lon_t = lons[tick_sep*(i+1)]
-        lat_t = lats[tick_sep*(i+1)]
-        dt_t  = times[tick_sep*(i+1)]
-        my_xticks.append(str(alt_t)+"\n"+str(lat_t)+"\n"+str(lon_t)+"\n"+str(dt_t))
+    datautils.update_progress(0.6)
 
     plt.xlabel('Geographic Longitude (degrees)')
     plt.ylabel('Geographic Latitude (degrees)')
-    plt.title("EPOP Closest Approach vs. Ottawa radar for " + "2016-04-" + str(times[0].day))
+    times_str = tp(times[0].hour) + ":" + tp(times[0].minute) + \
+                 "-" + tp(times[-1].hour) + ":" + tp(times[-1].minute)
+    dates_str = str(times[0].year) + tp(times[0].month) + tp(times[0].day)
+    plt.title("CASSIOPE Ground Track for " + dates_str + " " + times_str)
     #plt.legend(loc='best')
+    datautils.update_progress(0.9)
     plt.show()
  
 
@@ -136,6 +131,21 @@ def plot_fov_sat(fovname, ephem_lons, ephem_lats, date=None, frontback='front',
         plt.savefig("someplot.png")
     if suppress_show==False:
         plt.show()
+
+def plot_fan_rri(lons, lats, alts, times, codes=['sas']):
+    """
+    Plot the RRI ground track along with specified SuperDARN power plots
+    from the corresponding time period.
+    """
+    from davitpy import pydarn
+    if not all([ type(t)==dt.datetime for t in times ]):
+        logging.error("plot_fan_rri() requires datetimes")
+
+    for code in codes:
+        logging.info("Processing station '{0}'...".format(code)) 
+
+    pydarn.plotting.fan.plotFan(times[0], codes, param='power', gsct=False)
+
 
 def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
     """
