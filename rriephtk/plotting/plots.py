@@ -29,7 +29,7 @@ MILLSTONE_TX_LON = -71.491 # acquired from google maps satellite imagery
 MILLSTONE_TX_LAT = 42.619
 data_path = '../rri-conjunction-script/data'
 
-def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=None):
+def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=None, tx_lon=None, tx_lat=None):
     """
     Attempt to give a nice ground-track 
 
@@ -46,20 +46,24 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
     datautils.update_progress(0.1)    
 
     # A different font for the legend etc. might be nice
-    #fig = plt.figure()
     font = {'fontname':'Computer Modern'}
-    m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=4.0*(max(lons) - min(lons))*1000*180, \
-                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='c',datetime=times[0])
+    m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=2.0*(max(lons) - min(lons))*1000*180, \
+                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='i', \
+                         datetime=times[0])
     # (the 1000* factors are to replace 1000 in how usually these are written as "width=111e3*180")
 
     datautils.update_progress(0.3)
 
-    x,y = m(lons,lats,coords='geo')
-    m.plot(x,y,'b',label="ePOP ground track")
+    x,y = m(lons, lats, coords='geo')
+    m.plot(x, y, 'b-', label="ePOP ground track")
+
+    if tx_lon is not None and tx_lat is not None:
+        x, y = m(tx_lon, tx_lat, coords='geo')
+        m.plot(x, y, 'ro', label='Transmitter')        
 
     datautils.update_progress(0.6)
 
-    plt.xlabel('Geographic Longitude (degrees)')
+    plt.xlabel('Geographic Longitude (degrees)', verticalalignment='bottom')
     plt.ylabel('Geographic Latitude (degrees)')
     times_str = tp(times[0].hour) + ":" + tp(times[0].minute) + \
                  "-" + tp(times[-1].hour) + ":" + tp(times[-1].minute)
@@ -68,7 +72,6 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
     #plt.legend(loc='best')
     datautils.update_progress(0.9)
     plt.show()
- 
 
 def plot_fov_sat(fovname, ephem_lons, ephem_lats, date=None, frontback='front',
                  suppress_show=False, outfile_name=None):
@@ -132,20 +135,25 @@ def plot_fov_sat(fovname, ephem_lons, ephem_lats, date=None, frontback='front',
     if suppress_show==False:
         plt.show()
 
-def plot_fan_rri(lons, lats, alts, times, codes=['sas']):
+def plot_fan_rri(lons, lats, alts, time, codes=['sas'], save=False):
     """
     Plot the RRI ground track along with specified SuperDARN power plots
     from the corresponding time period.
     """
     from davitpy import pydarn
-    if not all([ type(t)==dt.datetime for t in times ]):
-        logging.error("plot_fan_rri() requires datetimes")
+    import fanrri
+    assert(type(time) == dt.datetime)
 
     for code in codes:
         logging.info("Processing station '{0}'...".format(code)) 
 
-    pydarn.plotting.fan.plotFan(times[0], codes, param='power', gsct=False)
-
+    if save:
+        fanrri.plotFan(time, codes, param='power', gsct=False, lons=lons, lats=lats, 
+                        png=True, pdf=False, show=False) 
+    else:
+        fanrri.plotFan(time, codes, param='power', gsct=False, lons=lons, lats=lats, 
+                        png=False, pdf=False, show=True) 
+    #pydarn.plotting.fan.plotFan(time, codes, param='power', gsct=False)
 
 def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
     """

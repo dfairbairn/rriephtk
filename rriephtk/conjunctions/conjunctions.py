@@ -89,6 +89,9 @@ def get_conjunctions(fname):
     ground-track intersects the field of view of SuperDARN radars. 
 
     """
+    if 'rLogger' not in locals():
+        initialize_logger()
+
     lons, lats, alts, ephtimes = data_utils.get_rri_ephemeris(fname)
     times = data_utils.ephems_to_datetime(ephtimes)
 
