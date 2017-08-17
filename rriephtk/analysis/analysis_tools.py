@@ -104,8 +104,8 @@ def cyclotron_freq(B):
 
     *** PARAMS ***
         B [float] or [list/ndarray of floats]: magnetic field. If in list form,
-            this function takes the average magnitude of B's [nT]
-         *Note that B is expected to be in nanotesla (e.g. around 50000nT)
+            this function takes the average magnitude of B's [T]
+         *Note that B is expected to be in tesla (e.g. around 50000nT is 50000.E-9)
 
     ***RETURNS***
         omega_c [float]: cyclotron frequency (rad/s)
@@ -126,7 +126,22 @@ def cyclotron_freq(B):
 
 def improved_cyclotron_freq(lons, lats, alts, ephtimes, fof2_alt=250.):
     """
+    Takes CASSIOPE ephemeris (lons,lats,alts,ephtimes) and uses IGRF to
+    calculate predicted B-field strength, returning a mean cyclotron freq
+    based on the mean B field over the course of the pass.
 
+    *** PARAMS ***
+    lons: longitude (deg)
+    lats: latitude (deg)
+    alts: altitude (km)
+    ephtimes: times 
+    [fof2_alt] (default: 250.): height of the fof2 peak in km. Subroutine uses 
+                            the fof2 peak alt. as the location at which to get
+                            model's B field
+    
+    *** RETURNS ***
+    omega_c: average cyclotron frequency encountered by incident radio waves in
+            ionosphere (in the sliver of ionosphere where lots of stuff happens)
     """
     import magnet_data
     e =  1.602E-19            #[C]            Elementary charge
@@ -177,14 +192,13 @@ def appleton_hartree(X, Y, Z, theta):
 
     Returns:
         nplus: The positive index of refraction from Appleton-Hartree
-        nminus: The negative index of refraction from Appleton-Hartree    NOTE: CURRENTLY USES APPROXIMATIONS ASSUMING FLAT EARTH (ONLY
+        nminus: The negative index of refraction from Appleton-Hartree    
+    
+    NOTE: CURRENTLY USES APPROXIMATIONS ASSUMING FLAT EARTH (ONLY
     REASONABLE NEAR THE TRANSMITTER). CAN BE OFF BY UP TO 8 DEGREES
     FOR THE APRIL 2016 PASSES.
     
     USE 'GET_KVEC2', 'GET_BVEC2' FOR IMPROVED PERFORMANCE.
-
-
-
     """
 
     term1 = 1. - 1j*Z

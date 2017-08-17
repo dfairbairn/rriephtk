@@ -9,6 +9,7 @@ import __init__
 import rriephtk.utils.data_utils as data_utils
 import analysis_tools
 import h5py
+import numpy as np
 
 sample_mgf_datafile = "data/mgf/MGF_20160418_222505_224033_V_01_00_00.1sps.GEI.lv3"
 
