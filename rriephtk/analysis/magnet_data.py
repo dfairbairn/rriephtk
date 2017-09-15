@@ -1,8 +1,10 @@
-""" file: magnet_data.py
+""" 
+file: magnet_data.py
 author: David Fairbairn
 date: September 2016
 
-Looking at Magnetometer data from ePOP during the Ottawa passes of April 2016.
+For looking at magnetometer data from ePOP and computing magnetic field model
+predictions.
 
 """
 import __init__

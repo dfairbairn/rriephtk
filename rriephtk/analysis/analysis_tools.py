@@ -248,6 +248,137 @@ def txpass_to_indices(lons, lats, alts, ephtimes,
     nminus = np.sqrt(nm_sq)
     return angles_rad, nplus, nminus
 
+def faraday_pass(lons, lats, alts, ephtimes, densities_arr, densities_lats,
+                 tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
+    """
+    Performs faraday_trace() for each ephemeris point in a pass.
+
+    *** PARAMS ***
+        lons, lats, alts, ephtimes: the standard [np.array] of [float]'s from
+                                    using data_utils.get_rri_ephemeris().
+        densities_arr, densities_lats: the array/list retrieved from using
+                                    data_utils.load_density_profile() on one 
+                                    of Rob Gillies' density profile files.
+        [tx_lon, tx_lat, tx_alt]: longitude, latitude, and altitude of the 
+                                ground-based transmitter in the experiment.
+                                *DEFAULTS TO OTTAWA NRCAN TRANSMITTER.*
+
+    ***RETURNS***
+        The returned parameters are just the Faraday_trace outputs for each 
+        point along a CASSIOPE pass.
+
+        TEC: total electron content line integral (integral{n_e * dl vector} -> n_e * dist)
+        mean_bcs: Means of mag field-cosine(aspect angle) product integral term 
+                    (integral B cos theta )
+        ql integrals: integrals of products of TEC term and bcs (integral {B cos theta * n_e * dL})
+                    *** REFER TO HUSSEY THESIS PAGE 110: this term is an *approximation* for the
+                     Faraday rotation when the QL regime is assumed ***
+        phase_integrals: integrals of the difference of + and - indices of refraction
+                    *** See HUSSEY THESIS PAGE 109: this term is a *non-approximated expression
+                    for the Faraday rotation phase incurred over the course of a radio wave's
+                    travel from transmitter to receiever ***.
+
+
+    """
+    faraday_integrals = []
+    ql_integrals = []
+    tecs = []
+    mean_bcs = []
+    for i, alt in enumerate(alts):
+        lon = lons[i]
+        lat = lats[i]
+        ephtime = ephtimes[i]
+        TEC, bcs, ql_integral, faraday_integral = faraday_trace(
+            lon, lat, alt, ephtime, densities_arr, densities_lats,
+            tx_lon, tx_lat, tx_alt)
+        tecs.append(TEC)
+        mean_bcs.append(np.mean(bcs))
+        ql_integrals.append(ql_integral)
+        faraday_integrals.append(faraday_integral)
+    return tecs, mean_bcs, ql_integrals, faraday_integrals
+
+def faraday_trace(lon, lat, alt, ephtime, densities_arr, densities_lats,
+                  tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07, freq=1.0422E7):
+    """
+    Does a ray trace from a transmitter to a input point to calculate
+    faraday rotation.
+
+    This ray trace also calculates individual terms along the way (line
+    integrals of electron density, B cos(theta), and their product).
+
+    Directly computes indices of refraction for each voxel to allow a
+    mostly unapproximated calculation of phase.
+
+    *** PARAMS ***
+        lons, lats, alts, ephtimes: the standard [np.array] of [float]'s from
+                                    using data_utils.get_rri_ephemeris().
+        densities_arr, densities_lats: the array/list retrieved from using
+                                    data_utils.load_density_profile() on one 
+                                    of Rob Gillies' density profile files.
+        [tx_lon, tx_lat, tx_alt]: longitude, latitude, and altitude of the 
+                                ground-based transmitter in the experiment.
+                                *DEFAULTS TO OTTAWA NRCAN TRANSMITTER.*
+    
+    *** RETURNS ***
+        TEC: total electron content line integral (integral{n_e * dl vector} -> n_e * dist)
+        bcs: mag field-cosine of aspect angle product term ( B cos theta )
+        ql integral: integral of products of TEC term and bcs (integral {B cos theta * n_e * dL})
+                    *** REFER TO HUSSEY THESIS PAGE 110: this term is an *approximation* for the
+                     Faraday rotation when the QL regime is assumed ***
+        phase_integral: integral of the difference of + and - indices of refraction
+                    *** See HUSSEY THESIS PAGE 109: this term is a *non-approximated expression
+                    for the Faraday rotation phase incurred over the course of a radio wave's
+                    travel from transmitter to receiever ***.
+
+    """
+    logging.info("Tracing from transmitter at (75W,45N,70m Alt) "
+          "to ({0},{1},{2}km elevation)".format(lon, lat, alt))
+
+    ang_deg = get_elevation_angle(tx_lon, tx_lat, tx_alt, lon, lat, alt)
+    # path length through plasma voxel is r = y/sin(theta), y = 1E3 (1km)
+    dist = 1E3/np.sin(np.deg2rad(ang_deg))
+    kv = get_kvecs(lon, lat, alt)
+    time = ephem_to_datetime(ephtime)
+
+    # Plasma density profiles start at 60 km and go up to 559 km
+    ndiffs = []
+    bcs = []
+    TEC = 0.
+    phase_integral = 0.
+    ql_integral = 0.
+
+    pl_alts = np.arange(60., alt)
+
+    for pl_alt in pl_alts: # Go from 60 km altitude up to satellite altitude
+        plon, plat = get_plasma_intersection(lon, lat, alt, plasma_alt=pl_alt,
+                                            tx_lon=tx_lon, tx_lat=tx_lat,
+                                            tx_alt=tx_alt)
+
+        n_e = data_utils.get_density(plon, plat, pl_alt, densities_arr,
+                                     densities_lats)
+        TEC += dist*n_e
+        omega_p = plasma_freq(n_e)
+        bv = get_bvec(plon, plat, pl_alt, time)
+        # 1E-9 factor necessary for nT -> T
+        omega_c = cyclotron_freq(1E-9*np.linalg.norm(bv))
+
+        X, Y, Z = appleton_coeffs(omega_p, omega_c, freq,0.)
+        ang_deg = get_aspect_angle(kv, bv)
+        b_cos_theta = np.abs(np.linalg.norm(bv)*np.cos(np.deg2rad(ang_deg)))
+        bcs.append(b_cos_theta)
+        # 1E-9 factor necessary for nT -> T
+        ql_integral += dist*b_cos_theta*n_e*1E-9
+
+        nplus, nminus = appleton_hartree(X, Y, Z, np.deg2rad(ang_deg))
+        phase_integral += dist*(nplus-nminus)
+
+    factors1 = ((1.602E-19)**3)/(2*3.00E8*8.85E-12*(9.11E-31*2*np.pi*freq)**2)
+    factors2 = (2*np.pi*freq)/(2*3.00E8)
+    ql_integral *= factors1
+    phase_integral *= factors2 # omega/2c factor for the integral
+    return TEC, bcs, ql_integral, phase_integral
+
+
 # -----------------------------------------------------------------------------
 #                         Telemetry and Ephemeris Functions
 #                         ---------------------------------
@@ -525,99 +656,6 @@ def get_plasma_intersection(lon, lat, alt, plasma_alt=300., tx_lon=-75.552,
     logging.info('plasma_lon, plasma_lat: {0},{1}'.format(plasma_lon, plasma_lat))
     return (plasma_lon, plasma_lat)
 
-def faraday_pass(lons, lats, alts, ephtimes, densities_arr, densities_lats,
-                 tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
-    """
-    Performs faraday_trace() for each ephemeris point in a pass.
-
-    *** PARAMS ***
-
-
-
-    ***RETURNS***
-        tecs
-        mean_bcs [np.ndarray[float]]:
-        ql_integrals [np.ndarray[float]]: integrals of B cos(theta)*N_e
-        faraday_integrals [np.ndarray[float]]: integrals of difference
-                                               in indices of refraction.
-    """
-    faraday_integrals = []
-    ql_integrals = []
-    tecs = []
-    mean_bcs = []
-    for i, alt in enumerate(alts):
-        lon = lons[i]
-        lat = lats[i]
-        ephtime = ephtimes[i]
-        TEC, bcs, ql_integral, faraday_integral = faraday_trace(
-            lon, lat, alt, ephtime, densities_arr, densities_lats,
-            tx_lon, tx_lat, tx_alt)
-        tecs.append(TEC)
-        mean_bcs.append(np.mean(bcs))
-        ql_integrals.append(ql_integral)
-        faraday_integrals.append(faraday_integral)
-    return tecs, mean_bcs, ql_integrals, faraday_integrals
-
-def faraday_trace(lon, lat, alt, ephtime, densities_arr, densities_lats,
-                  tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07, freq=1.0422E7):
-    """
-    Does a ray trace from a transmitter to a input point to calculate
-    faraday rotation.
-
-    This ray trace also calculates individual terms along the way (line
-    integrals of electron density, B cos(theta), and their product).
-
-    Directly computes indices of refraction for each voxel to allow a
-    mostly unapproximated calculation of phase.
-
-    """
-    logging.info("Tracing from transmitter at (75W,45N,70m Alt) "
-          "to ({0},{1},{2}km elevation)".format(lon, lat, alt))
-
-    ang_deg = get_elevation_angle(tx_lon, tx_lat, tx_alt, lon, lat, alt)
-    # path length through plasma voxel is r = y/sin(theta), y = 1E3 (1km)
-    dist = 1E3/np.sin(np.deg2rad(ang_deg))
-    kv = get_kvecs(lon, lat, alt)
-    time = ephem_to_datetime(ephtime)
-
-    # Plasma density profiles start at 60 km and go up to 559 km
-    ndiffs = []
-    bcs = []
-    TEC = 0.
-    phase_integral = 0.
-    ql_integral = 0.
-
-    pl_alts = np.arange(60., alt)
-
-    for pl_alt in pl_alts: # Go from 60 km altitude up to satellite altitude
-        plon, plat = get_plasma_intersection(lon, lat, alt, plasma_alt=pl_alt,
-                                            tx_lon=tx_lon, tx_lat=tx_lat,
-                                            tx_alt=tx_alt)
-
-        n_e = data_utils.get_density(plon, plat, pl_alt, densities_arr,
-                                     densities_lats)
-        TEC += dist*n_e
-        omega_p = plasma_freq(n_e)
-        bv = get_bvec(plon, plat, pl_alt, time)
-        # 1E-9 factor necessary for nT -> T
-        omega_c = cyclotron_freq(1E-9*np.linalg.norm(bv))
-
-        X, Y, Z = appleton_coeffs(omega_p, omega_c, freq,0.)
-        ang_deg = get_aspect_angle(kv, bv)
-        b_cos_theta = np.abs(np.linalg.norm(bv)*np.cos(np.deg2rad(ang_deg)))
-        bcs.append(b_cos_theta)
-        # 1E-9 factor necessary for nT -> T
-        ql_integral += dist*b_cos_theta*n_e*1E-9
-
-        nplus, nminus = appleton_hartree(X, Y, Z, np.deg2rad(ang_deg))
-        phase_integral += dist*(nplus-nminus)
-
-    factors1 = ((1.602E-19)**3)/(2*3.00E8*8.85E-12*(9.11E-31*2*np.pi*freq)**2)
-    factors2 = (2*np.pi*freq)/(2*3.00E8)
-    ql_integral *= factors1
-    phase_integral *= factors2 # omega/2c factor for the integral
-    return TEC, bcs, ql_integral, phase_integral
-
 def get_kb_angle(lons, lats, alts, ephtimes,
                  tx_lon=-75.552, tx_lat=45.503, tx_alt=0.07):
     """
@@ -744,7 +782,7 @@ def get_closest_approach(lons, lats, alts, tx_lon=OTTAWA_TX_LON,
     """
 
     # *** FINDING THE CLOSEST APPROACH ***
-    # Using the Haversine formula (in a function in script_utils.py), the
+    # Using the Haversine formula (in a function in data_utils.py), the
     # closest approach is determined by brute force.
     dists = []
     longdists = []
