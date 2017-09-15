@@ -34,6 +34,8 @@ class FileLineWrapper(object):
     **ATTRIBUTES**
         f (file object): the file object being wrapped.
         line (int): tracks current line number
+        line_offs (list of ints): list where the i-th element holds the 
+                                byte number for the i-th line in the file.
         
     ** 0 indexed lines in the file! ** 
     ** Can use this just by going:
@@ -53,9 +55,11 @@ class FileLineWrapper(object):
             self.line_offs.append(offset)
             offset += line.__len__()
         self.f.seek(0)
+
     def close(self):
         """ Closer function for filewrapper object. """
         return self.f.close()
+
     def readline(self):
         """ 
         This wrapper adds a lot of overhead with the if-statement, but has
@@ -65,6 +69,7 @@ class FileLineWrapper(object):
         if ln!="":
             self.line += 1
         return ln
+
     def seekline(self,line_num):
         """ Go to the nth line in the file. """ 
         self.line = line_num
@@ -80,6 +85,9 @@ class JDEphemerisTime(float):
     def __new__(cls, num):
         logging.debug("num: {0}\ntype of num: {1}".format(num, type(num)))
         return super(JDEphemerisTime, cls).__new__(cls, num) 
+
+    def to_datetime(self):
+        return ephem_to_datetime(self)
 
 def initialize_data():
     """
@@ -232,48 +240,6 @@ def get_ottawa_data(date_string):
         return None    
     return fname,index_reversal
 
-def get_ottawa_data2(date_string):
-    """
-    Does same as get_ottawa_data() only this time, it also includes the index
-    of the reversal in ellipticity angle (in addition to the orientation angle
-    flipping re: Faraday rotation).
-
-    Param: date_string - formatted like "20160422"
-
-    Returns: fname, rev_idx_orientation, rev_idx_ellipt
-
-    Source: Inspection of Plots.
-    (Glenn's inspection of ellipticity reversal, both of ours for orientation reversal)
-
-    """
-    if isinstance(date_string, type(None)): date_string="20160418"
-
-    # **** CHOOSE ONE OF THESE RRI FILES THEN RUN THE SCRIPT ****
-    if "20160418"==date_string:
-        fname = RRIEPHTK_DATA + "/RRI_20160418_222759_223156_lv1_v2.h5" #18th
-        orientation_rev = 168 #for 18th # Stay
-        ellipt_rev = 167
-    elif "20160419"==date_string:
-        orientation_rev = 177
-        ellipt_rev = 158
-        fname = RRIEPHTK_DATA + "/RRI_20160419_220939_221336_lv1_v2.h5" #19th
-    elif "20160420"==date_string:
-        orientation_rev  = 213 #for 20th # Stay
-        ellipt_rev = 133 # ??? it also does something near 213 though
-        fname = RRIEPHTK_DATA + "/RRI_20160420_215117_215514_lv1_v2.h5" #20th
-    elif "20160421"==date_string:
-        orientation_rev  = 210
-        ellipt_rev = 125
-        fname = RRIEPHTK_DATA + "/RRI_20160421_213255_213652_lv1_v2.h5" #21st
-    elif "20160422"==date_string:
-        orientation_rev  = 221
-        ellipt_rev = 110 
-        fname = RRIEPHTK_DATA + "/RRI_20160422_211435_211832_lv1_v2.h5" #22nd
-    else:
-        print("Invalid input date.")
-        return None    
-    return fname,orientation_rev,ellipt_rev
-
 def load_density_profile(fname):
     """
     Function for loading data from an electron densities data file.    
@@ -286,8 +252,6 @@ def load_density_profile(fname):
                  latitudes for e- density at various altitudes.
         datlats [list of floats]: latitudes corresponding to each entry in datarr list
  
-    * NOTE: 
-
     """
     import pandas as pd
     import numpy as np
@@ -337,6 +301,11 @@ def get_density(lon, lat, alt, datarr, datlats):
     for a particular location/altitude.
 
     (You give us the data and we'll do the work for you!)
+
+    The density array is assumed to have the form of Rob Gillies' density profiles
+    which have some header information in the first line, followed by lines that
+    possess these fields: { num of latitudinal division, latitude start, [data]}
+    e.g. { 2 48 1.000000000E01 1.00003E01 .. 6.239E10 .... }
 
     **These electron densities are in terms of m^3**
 
@@ -394,7 +363,8 @@ def open_errlog(data_path, rcode, date):
 
 def open_tstamps(data_path, date):
     """
-    A function that makes opening timestampdata for Saskatoon a reusable action.
+    A function that makes opening timestampdata (for Saskatoon currently)
+    a reusable action.
 
     ** PARAMS **
         date (datetime object): the date of interest
@@ -442,7 +412,6 @@ def get_line_in_file(fl, srch_str):
     if False==found:
         return -1
     return line_num
-
 
 def list_mgf_files(path=(RRIEPHTK_DATA + '/mgf/')):
     """ 
@@ -612,7 +581,7 @@ if __name__ == "__main__":
     data_path,dat_fname = initialize_data()
 
     # Testing FileLineWrapper
-    f = open('./script_utils.py','r')
+    f = open('./data_utils.py','r')
     ln = f.readline()
     f.readline()
     offs = f.tell()
@@ -642,8 +611,7 @@ if __name__ == "__main__":
     #print get_line_in_file(file_stamps, '01:15')
     #print get_line_in_file(file_stamps, '01:15')
 
-    #TODO: automated tests on some of the new data access functions??? 
-   
+    #TODO: automated tests on some of the new Rob Gillies' density data access functions??? 
 
     # TESTS OF GENERAL DATA UTILITIES 
     # Testing ephem_to_datetime():

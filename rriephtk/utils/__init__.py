@@ -16,7 +16,6 @@ except Exception as e:
     logging.exception("Problem importing data_utils: {0}".format(e))
 
 try:
-    import script_utils
+    import range_cells
 except Exception as e:
-    logging.exception("Problem importing data_utils: {0}".format(e))
-
+    logging.exception("Problem importing range_cells: {0}".format(e))
