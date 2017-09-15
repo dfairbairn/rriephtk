@@ -59,7 +59,8 @@ class RRISuperdarnConjunction:
         str1 = "RRISuperDARNConjunction: '{0}' ({1}) ".format(self.code, self.forb)
         str2 = "Beam,Gate {0} to {1}".format((self.bm_start, self.gt_start), 
                                               (self.bm_end, self.gt_end))
-        return str1+str2
+        str3 = ", Conj Heuristic: {0}".format(self.conj_heuristic())
+        return str1+str2+str3
 
     def conj_heuristic(self):
         """
@@ -67,6 +68,7 @@ class RRISuperdarnConjunction:
         could be affected by the SuperDARN radar.
 
         Proximity and extent of FOV crossed are the considerations.
+        Values are 2, 1, 0 from highest relevance to lowest.
 
         Note: 1000km proximity is 22 range gates of less. 
               1800km = 40 range gates
@@ -88,6 +90,15 @@ def get_conjunctions(fname):
     Returns a list of conjunction objects describing how the CASSIOPE
     ground-track intersects the field of view of SuperDARN radars. 
 
+    ** PARAMS **
+    fname (string): name of the RRI file 
+
+    ** RETURNS **
+    conjs (list of RRISuperDARNConjunctions): the result of looking for RRI groundtrack
+            intersection with FOVs of SuperDARN arrays.
+
+    *note*: Currently only looks at currently active radars and assumes they were active
+            at the time of the RRI pass.
     """
     if 'rLogger' not in locals():
         initialize_logger()
@@ -110,6 +121,8 @@ def get_conjunctions(fname):
     for i, rad in enumerate(activerads):
         # Check active radars
         if rad.status == 1:
+            # Construct the fields of view, use Ashton range_cells code to 
+            # find intersections, receive beam, gate intersection points.
             fov_f = pydarn.radar.radFov.fov(site=rad.sites[0], altitude=300.,
                 model='IS', coords='geo', ngates=75, fov_dir='front')
             bm_f, gt_f = range_cells.findRangeCell(lat_subs, lon_subs, fov_f)
@@ -119,10 +132,11 @@ def get_conjunctions(fname):
             bm_b, gt_b = range_cells.findRangeCell(lat_subs, lon_subs, fov_b)
             
             results[rad.name] = (bm_f, gt_f, bm_b, gt_b)
+
             # non_nan_X contains indices of items that aren't nan (ie. within fov)
             non_nan_f = [n for n in range(np.size(bm_f)) if not math.isnan(bm_f[n])]        
-            non_nan_b = [n for n in range(np.size(bm_b)) if not math.isnan(bm_b[n])]
-             
+            non_nan_b = [n for n in range(np.size(bm_b)) if not math.isnan(bm_b[n])] 
+            # if the front or back FOV have non-nans, there's a conjunction! So we build it.
             if (non_nan_b.__len__() > 0):
                 rLogger.debug("Back field-of-view conjunction for {0}".format(rad))
                 start = non_nan_b[0] 
@@ -149,9 +163,6 @@ def get_conjunctions(fname):
     rLogger.info("\nTime req'd to compute detailed intersections by brute force: " + \
         str(end_t - start_t) + " seconds.")
 
-    # In general there will be a post-processing step in which only the 
-    # conjunction results will be included in the output
-    
     # Output results to show things off:
     rLogger.info("Start time: " + str(times[0]))
     rLogger.info("End time: " + str(times[-1]))
@@ -221,7 +232,9 @@ def tag_conjunctions(fname):
 def eliminate_conjunctions(fname):
     """
     Takes a filename for an RRI datafile which contains a 'SuperDARN 
-    Conjunctions' data group, and deletes the datagroup.
+    Conjunctions' data group, and deletes the datagroup. 
+    
+    AKA undoes 'tag_conjunctions()'
     """
     import h5py
     f = h5py.File(fname)
@@ -231,6 +244,8 @@ def read_conjunctions(fname):
     """
     Takes an hdf5 file with SuperDARN Conjunctions tagged and extracts
     the conjunctions objects from it.
+
+    AKA used to see what was written into an RRI file using 'tag_conjunctions()'
     """
     import h5py
     f = h5py.File(fname)
@@ -260,6 +275,16 @@ def fetch_radar_logs(fname):
     fetches SuperDARN 'errlog' files for any Canadian radars that are 
     intersected, writing an output file that summarizes the conjunctions
     and the relevant lines of the errlog records.
+
+    ** PARAMS **
+    fname (string): name of RRI file (with path) that has conjunctions tagged.
+
+    ** OUTPUTS **
+    For each Canadian radar whose fov is intersected:
+      - the errlog for that radar on that day is loaded temporarily
+      - a subset of the errlog lines plus or minus 3 minutes of the RRI pass
+        duration is saved in a 'summary' file along with a list of the 
+        conjunctions.
     """
     nw = pydarn.radar.network()
     conjs = read_conjunctions(fname)
@@ -281,11 +306,10 @@ def fetch_radar_logs(fname):
     for u in uofs_rads:
         rcode = u.code
         # import rriephtk.plotting.plots as plots
-        #plots.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
+        # plots.plot_fov_sat(u.name, lons, lats, date=start, suppress_show=True)
 
         f = data_utils.open_errlog(data_path, rcode, start) 
 
-        #TODO: Consider actually copying this Errlog file
         start_line, end_line = start_end_lines(f, start_str, end_str)
         rLogger.info("Start line: {0}\nEnd line: {1}".format(start_line, end_line))
 
@@ -296,11 +320,11 @@ def fetch_radar_logs(fname):
         while f.line <= end_line:
             rel_lines = rel_lines + f.readline()
 
+        # Do writing to summary file
         time_tag = str(start.year) + two_pad(start.month) + \
             two_pad(start.day) +  "_" + two_pad(start.hour) + \
             two_pad(start.minute) 
         out_fname = OUTPUT_DIR + "/" + time_tag + "_" + rcode + ".dat"
-
         with open(out_fname, "w+") as f:
             f.write("OUTPUT FILE FOR RRI CONJUNCTION SCRIPT\n")
             f.write("======================================\n")
@@ -311,13 +335,22 @@ def fetch_radar_logs(fname):
                 f.write("\n" + str(c))
             f.write("\n\nRelevant SuperDARN data from +/- 3 minutes of the RRI data:\n")
             f.write(rel_lines)
-    
     return uofs_rads    
 
 def start_end_strings(start, end):
     """
     Takes datetime objects for the start and end of an RRI dataset, returns
     the search strings to look for in SuperDARN .errlog files.
+
+    ** PARAMS **
+    start (datetime): start time of RRI data
+    end (datetime): end time of RRI data
+
+    ** RETURNS **
+    start_string (string): the formatted string to look for in the errlog 
+                file corresponding to the start of the RRI dataset.
+    end_string (string): the formatted end string to look for in the errlog
+                file corresponding to the end of the RRI dataset.
     """
     # ERRLOG files contain entries describing the beam number and frequency of 
     # the transmission, occurring roughly every three seconds, starting on each 
@@ -355,6 +388,18 @@ def start_end_lines(f, start_string, end_string):
     """
     Searches the errlog file pointed to by file handle f for the 
     starting and ending intervals
+
+    ** PARAMS **
+    f (data_utils.FileLineWrapper): errlog file
+    start_string (string): the formatted string to look for in the errlog 
+                file corresponding to the start of the RRI dataset.
+    end_string (string): the formatted end string to look for in the errlog
+                file corresponding to the end of the RRI dataset.
+
+    ** RETURNS **
+    start_line (int): line number for start of relevant section of errlog
+    end_line (int): line number for end of relevant section of errlog
+
     """
     # With the file open, search for the desired time interval's beginning.
     # Search for the position of the first line of interest
@@ -387,8 +432,13 @@ def initialize_logger(quiet_mode=False):
     """
     Function for setting up the initial logging parameters
 
-    :param use_verbose: [boolean] flag indicating whether to be verbose.
+    ** PARAMS **
+    use_verbose [boolean]: flag indicating whether to be verbose.
         ** If _not_ running parse/fetch requests from the command-line **
+
+    ** OUTPUTS **
+    - Initializes the logging module correctly.
+
     """
     global rLogger
     level = logging.INFO if quiet_mode else logging.DEBUG

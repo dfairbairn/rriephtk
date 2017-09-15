@@ -18,7 +18,6 @@ hardware at the radar site, the main SuperDARN system at a few locations
 undergoes frequent and unpredictable timing corrections (e.g. every 5 minutes 
 on average, discrete corrections that average about 0.5 seconds.) 
 
-
 **CURRENT STATUS**:
 At the moment, this code is only useful to get a sense of how 'off' the 
 errlog data might be - full correction of the errlog data timestamps is 
@@ -50,7 +49,9 @@ from rriephtk.utils.data_utils import two_pad
 
 def get_stamp_pulses(file_stamps,start_time,end_time):
     """
-    A function which 
+    A function which takes a filehandle for the Saskatoon timestamper data and 
+    start and end time periods of interest, and returns all the times a pulse 
+    occurred.
 
     *** PARAMS ***
     file_stamps (file object): timestamps file e.g. maxwell:/data/epop/20160418.0100.timestampdata.bz2
@@ -104,15 +105,15 @@ def get_errl_pulses(f_errl, start, end):
     Function to grab the pulses from the errlog file for the desired time
     interval as well as their general timestamps.
 
-
     *** PARAMS ***
     file_errl (FileLineWrapper obj): errl file e.g. maxwell:/data/sas_errlog/...
     start (datetime obj): the start of the time period of interest for gathering pulse data
     end (datetime obj): the end of the time period of interest 
 
     *** RETURNS ***
-
-
+    pulse_times (list of strings): the total timestamps (as a string) for each pulse
+    pulses (list of floats): the times (in seconds) at which a pulse goes out    
+   
     """
     start_str = two_pad(start.hour) + ":" + two_pad(start.minute) + ":"
     end_str = two_pad(end.hour) + ":" + two_pad(end.minute) + ":"
