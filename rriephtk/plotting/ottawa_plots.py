@@ -16,7 +16,6 @@ description: This file contains code used to produce fly-by plots of CASSIOPE
     In addition, magnetic coordinates and IGRF can be included.
 
 """
-from script_utils import *
 from data_utils import *
 
 from davitpy.utils import plotUtils
@@ -218,7 +217,7 @@ def get_closest_ottawa_approach(glons, glats, alts):
     """
 
     # *** FINDING THE CLOSEST APPROACH ***
-    # Using the Haversine formula (in a function in script_utils.py), the closest
+    # Using the Haversine formula (in a function in data_utils.py), the closest
     # approach is determined by brute force.
     dists = []
     longdists = []
