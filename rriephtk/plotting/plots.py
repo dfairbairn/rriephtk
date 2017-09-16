@@ -163,21 +163,22 @@ def plot_all5(geographic=False, latspacing=10.):
     """
     Plot April 18th-22nd ephemeris tracks on same mapobj
     """
-
+    from rriephtk.utils.data_utils import *
+    from rriephtk.analysis.analysis_tools import * 
     # Just in case we wanted to show points where we thought the ellipticity
     # angle experienced a distinctive shift also, these 'ellip_rev_xth' variables
     # are meant to show the index which we figure corresponds to their distinct 
     # shift (checking to see if it had any relationship to the faraday rotation
     # inflection point) 
-    fname_18th, idx_rev_18th, ellip_rev_18th = get_ottawa_data2("20160418")
+    fname_18th, idx_rev_18th = get_ottawa_data("20160418")
     lons_18th, lats_18th, alts_18th, ephtimes_18th = get_rri_ephemeris(fname_18th)
-    fname_19th, idx_rev_19th, ellip_rev_19th = get_ottawa_data2("20160419")
+    fname_19th, idx_rev_19th = get_ottawa_data("20160419")
     lons_19th, lats_19th, alts_19th, ephtimes_19th = get_rri_ephemeris(fname_19th)
-    fname_20th, idx_rev_20th, ellip_rev_20th = get_ottawa_data2("20160420")
+    fname_20th, idx_rev_20th = get_ottawa_data("20160420")
     lons_20th, lats_20th, alts_20th, ephtimes_20th = get_rri_ephemeris(fname_20th)
-    fname_21st, idx_rev_21st, ellip_rev_21st = get_ottawa_data2("20160421")
+    fname_21st, idx_rev_21st = get_ottawa_data("20160421")
     lons_21st, lats_21st, alts_21st, ephtimes_21st = get_rri_ephemeris(fname_21st)
-    fname_22nd, idx_rev_22nd, ellip_rev_22nd = get_ottawa_data2("20160422")
+    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
     lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
     
     times_18th = ephems_to_datetime(ephtimes_18th)
@@ -199,36 +200,26 @@ def plot_all5(geographic=False, latspacing=10.):
     shlat_18th = float(lats_18th[indx_shortest_18th])
     invlon_18th = float(lons_18th[idx_rev_18th])
     invlat_18th = float(lats_18th[idx_rev_18th])
-    elliplon_18th = float(lons_18th[ellip_rev_18th])
-    elliplat_18th = float(lats_18th[ellip_rev_18th])
  
     shlon_19th = float(lons_19th[indx_shortest_19th])
     shlat_19th = float(lats_19th[indx_shortest_19th])
     invlon_19th = float(lons_19th[idx_rev_19th])
     invlat_19th = float(lats_19th[idx_rev_19th])
-    elliplon_19th = float(lons_19th[ellip_rev_19th])
-    elliplat_19th = float(lats_19th[ellip_rev_19th])
 
     shlon_20th = float(lons_20th[indx_shortest_20th])
     shlat_20th = float(lats_20th[indx_shortest_20th])
     invlon_20th = float(lons_20th[idx_rev_20th])
     invlat_20th = float(lats_20th[idx_rev_20th])
-    elliplon_20th = float(lons_20th[ellip_rev_20th])
-    elliplat_20th = float(lats_20th[ellip_rev_20th])
 
     shlon_21st = float(lons_21st[indx_shortest_21st])
     shlat_21st = float(lats_21st[indx_shortest_21st])
     invlon_21st = float(lons_21st[idx_rev_21st])
     invlat_21st = float(lats_21st[idx_rev_21st])
-    elliplon_21st = float(lons_21st[ellip_rev_21st])
-    elliplat_21st = float(lats_21st[ellip_rev_21st])
-
+ 
     shlon_22nd = float(lons_22nd[indx_shortest_22nd])
     shlat_22nd = float(lats_22nd[indx_shortest_22nd])
     invlon_22nd = float(lons_22nd[idx_rev_22nd])
     invlat_22nd = float(lats_22nd[idx_rev_22nd])
-    elliplon_22nd = float(lons_22nd[ellip_rev_22nd])
-    elliplat_22nd = float(lats_22nd[ellip_rev_22nd])
    
     # A different font for the legend etc. might be nice
     fig = plt.figure(1, figsize=(14,8))
