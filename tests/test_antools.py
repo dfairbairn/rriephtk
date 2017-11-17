@@ -12,11 +12,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
-import data_utils
-import magnet_data
+import rriephtk.utils.data_utils as data_utils
+import rriephtk.utils.magnet_data as magnet_data
 
-from script_utils import ephem_to_datetime, ephems_to_datetime 
-from analysis_tools import *
+from rriephtk.utils.data_utils import ephem_to_datetime, ephems_to_datetime 
+from rriephtk.analysis.analysis_tools import *
 
 OTTAWA_TX_LON = -75.552
 OTTAWA_TX_LAT = 45.403

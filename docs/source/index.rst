@@ -51,7 +51,7 @@ that time period. Further study is available using the 'time_align' module.
 
 **Usage:**
 
-_Conjunctions_
+*Conjunctions*
 If you happen to have a computer with all the correct software and you have
 access to the data server, the script can be used by calling it at the 
 command line with the desired RRI data file as an additional argument:
@@ -83,7 +83,6 @@ various data sources.
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
 
 
 Indices and tables

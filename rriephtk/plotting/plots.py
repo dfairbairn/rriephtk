@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 file: plots.py
 description:
@@ -12,9 +13,14 @@ date: July 2017
 import subprocess 
 import datetime as dt
 
+import matplotlib
+import mpl_toolkits
+import mpl_toolkits.basemap
+
+import logging
 import numpy as np 
 import matplotlib.pyplot as plt
-import logging
+import argparse
 
 from davitpy.utils import plotUtils
 
@@ -29,27 +35,35 @@ MILLSTONE_TX_LON = -71.491 # acquired from google maps satellite imagery
 MILLSTONE_TX_LAT = 42.619
 data_path = '../rri-conjunction-script/data'
 
-def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=None, tx_lon=None, tx_lat=None):
+def plot_sat_ephemeris(lons, lats, alts, ephtimes, 
+                        tx_lons=None, tx_lats=None, tx_labels=None, save=False, 
+                        w_mult=1.0, h_mult=1.0, c_offs_lon=0., o_offs_lat=0.):
     """
-    Attempt to give a nice ground-track 
+    Attempt to give a nice ground-track plot for the RRI ephemeris coordinates
+    provided, and adds individual location points (e.g. ground stations) as needed.
 
+    **PARAMS**
+        lons, lats, alts, ephtimes: [numpy.array] the usual ephemeris arrays
+        tx_lons: [numpy.array] of longitude points for specified points
+        tx_lats: [numpy.array] of latitude points for specified points
+        tx_labels: [numpy.array] of labels for specified points
+        save: [boolean] true/false directive of whether or not to output the 
+            image as a file
     """
-    if lons is None or lats is None or alts is None or ephtimes is None:
-        if date_string==None or not isinstance(date_string, type("e.g.")):
-            print "Need to provide either lons/lats/alts/ephtimes or date_string!"
-            return -1
-        # e.g. like paired with the MGF data access
-        rri_fname,indx_rev = datautils.get_ottawa_data(date_string) 
+    try:
         lons,lats,alts,ephtimes = datautils.get_rri_ephemeris(rri_fname)
-    times=  datautils.ephems_to_datetime(ephtimes)
-
+        times =  datautils.ephems_to_datetime(ephtimes)
+    except Exception as e:
+        logging.error("Had issues loading RRI data - aborting. \nException:{0}".format(e))
+        return
     datautils.update_progress(0.1)    
 
     # A different font for the legend etc. might be nice
     font = {'fontname':'Computer Modern'}
-    m = plotUtils.mapObj(lat_0=np.mean(lats), lon_0=np.mean(lons), width=4.0*(max(lons) - min(lons))*1000*180, \
-                         height=1.3*(max(lats) - min(lats))*1000*180, coords='geo',resolution='i', \
-                         datetime=times[0])
+    m = plotUtils.mapObj(lat_0=np.mean(lats)+c_offs_lat, lon_0=np.mean(lons)+c_offs_lon, \
+                         width=w_mult*4.0*(max(lons) - min(lons))*1000*180, \
+                         height=h_mult*1.3*(max(lats) - min(lats))*1000*180, coords='geo',
+                         resolution='i', datetime=times[0])
     # (the 1000* factors are to replace 1000 in how usually these are written as "width=111e3*180")
 
     datautils.update_progress(0.3)
@@ -57,10 +71,15 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
     x,y = m(lons, lats, coords='geo')
     m.plot(x, y, 'b-', label="ePOP ground track")
 
-    if tx_lon is not None and tx_lat is not None:
-        x, y = m(tx_lon, tx_lat, coords='geo')
-        m.plot(x, y, 'ro', label='Transmitter')        
-
+    # Deal with specified points now
+    if isinstance(tx_lons, collections.Sequence) and isinstance(tx_lats, collections.Sequence):
+        for i, e in enumerate(tx_lon):
+            x, y = m(tx_lons[i], tx_lats[i], coords='geo')
+            if tx_labels is None or len(tx_labels) != len(tx_lons):
+                m.plot(x, y, 'ro')
+            else:
+                m.plot(x, y, 'ro', label=tx_labels[i])
+ 
     datautils.update_progress(0.6)
 
     plt.xlabel('Geographic Longitude (degrees)')
@@ -71,7 +90,10 @@ def plot_sat_ephemeris(date_string=None,lons=None,lats=None,alts=None,ephtimes=N
     plt.title("CASSIOPE Ground Track for " + dates_str + " " + times_str)
     #plt.legend(loc='best')
     datautils.update_progress(0.9)
-    plt.show()
+    if save:
+        plt.savefig('rri-groundtrack-{0}-{1}.png'.format(dates_str, times_str))
+    else:
+        plt.show()
 
 def plot_fov_sat(fovname, ephem_lons, ephem_lats, date=None, frontback='front',
                  suppress_show=False, outfile_name=None):
@@ -145,7 +167,7 @@ def plot_fan_rri(lons, lats, alts, time, codes=['sas'], save=False):
     assert(type(time) == dt.datetime)
 
     for code in codes:
-        logging.info("Processing station '{0}'...".format(code)) 
+        print("Processing station '{0}'...".format(code)) 
 
     if save:
         fanrri.plotFan(time, codes, param='power', gsct=False, lons=lons, lats=lats, 
@@ -163,35 +185,35 @@ def plot_all5(geographic=False, latspacing=10.):
     """
     Plot April 18th-22nd ephemeris tracks on same mapobj
     """
-    from rriephtk.utils.data_utils import *
-    from rriephtk.analysis.analysis_tools import * 
+    import rriephtk.utils.data_utils as dut
+    import rriephtk.analysis.analysis_tools as ant
     # Just in case we wanted to show points where we thought the ellipticity
     # angle experienced a distinctive shift also, these 'ellip_rev_xth' variables
     # are meant to show the index which we figure corresponds to their distinct 
     # shift (checking to see if it had any relationship to the faraday rotation
     # inflection point) 
-    fname_18th, idx_rev_18th = get_ottawa_data("20160418")
-    lons_18th, lats_18th, alts_18th, ephtimes_18th = get_rri_ephemeris(fname_18th)
-    fname_19th, idx_rev_19th = get_ottawa_data("20160419")
-    lons_19th, lats_19th, alts_19th, ephtimes_19th = get_rri_ephemeris(fname_19th)
-    fname_20th, idx_rev_20th = get_ottawa_data("20160420")
-    lons_20th, lats_20th, alts_20th, ephtimes_20th = get_rri_ephemeris(fname_20th)
-    fname_21st, idx_rev_21st = get_ottawa_data("20160421")
-    lons_21st, lats_21st, alts_21st, ephtimes_21st = get_rri_ephemeris(fname_21st)
-    fname_22nd, idx_rev_22nd = get_ottawa_data("20160422")
-    lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = get_rri_ephemeris(fname_22nd)
+    fname_18th, idx_rev_18th = dut.get_ottawa_data("20160418")
+    lons_18th, lats_18th, alts_18th, ephtimes_18th = dut.get_rri_ephemeris(fname_18th)
+    fname_19th, idx_rev_19th = dut.get_ottawa_data("20160419")
+    lons_19th, lats_19th, alts_19th, ephtimes_19th = dut.get_rri_ephemeris(fname_19th)
+    fname_20th, idx_rev_20th = dut.get_ottawa_data("20160420")
+    lons_20th, lats_20th, alts_20th, ephtimes_20th = dut.get_rri_ephemeris(fname_20th)
+    fname_21st, idx_rev_21st = dut.get_ottawa_data("20160421")
+    lons_21st, lats_21st, alts_21st, ephtimes_21st = dut.get_rri_ephemeris(fname_21st)
+    fname_22nd, idx_rev_22nd = dut.get_ottawa_data("20160422")
+    lons_22nd, lats_22nd, alts_22nd, ephtimes_22nd = dut.get_rri_ephemeris(fname_22nd)
     
-    times_18th = ephems_to_datetime(ephtimes_18th)
-    times_19th = ephems_to_datetime(ephtimes_19th)
-    times_20th = ephems_to_datetime(ephtimes_20th)
-    times_21st = ephems_to_datetime(ephtimes_21st)
-    times_22nd = ephems_to_datetime(ephtimes_22nd)
+    times_18th = dut.ephems_to_datetime(ephtimes_18th)
+    times_19th = dut.ephems_to_datetime(ephtimes_19th)
+    times_20th = dut.ephems_to_datetime(ephtimes_20th)
+    times_21st = dut.ephems_to_datetime(ephtimes_21st)
+    times_22nd = dut.ephems_to_datetime(ephtimes_22nd)
 
-    indx_shortest_18th, dists_18th = get_closest_approach(lons_18th, lats_18th, alts_18th)
-    indx_shortest_19th, dists_19th = get_closest_approach(lons_19th, lats_19th, alts_19th)
-    indx_shortest_20th, dists_20th = get_closest_approach(lons_20th, lats_20th, alts_20th)
-    indx_shortest_21st, dists_21st = get_closest_approach(lons_21st, lats_21st, alts_21st)
-    indx_shortest_22nd, dists_22nd = get_closest_approach(lons_22nd, lats_22nd, alts_22nd)
+    indx_shortest_18th, dists_18th = ant.get_closest_approach(lons_18th, lats_18th, alts_18th)
+    indx_shortest_19th, dists_19th = ant.get_closest_approach(lons_19th, lats_19th, alts_19th)
+    indx_shortest_20th, dists_20th = ant.get_closest_approach(lons_20th, lats_20th, alts_20th)
+    indx_shortest_21st, dists_21st = ant.get_closest_approach(lons_21st, lats_21st, alts_21st)
+    indx_shortest_22nd, dists_22nd = ant.get_closest_approach(lons_22nd, lats_22nd, alts_22nd)
     
     # The numeric data type that I was retrieving from geog_longs, when _NOT_ stored
     # in an array, was being rejected by the mapObj() function below. So I convert 
@@ -336,8 +358,103 @@ def ephem_ticks(lons,lats,alts,ephtimes,mlons,mlats,mlts):
     indices = range(times.__len__())
     tick_indices = [i*tick_sep for i in range(num_ticks)]
     plt.xticks(tick_indices, my_xticks)
-   
+  
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+
+def get_args():
+    """
+    Parse the command-line arguments.
+
+    Yes, in an ideal world, this whole thing would be a sweet little 
+    object which does things on initialization, but at least for now,
+    this works as a stand-alone function!
+
+    ** RETURNS **
+    rrifile (string): filename
+    rcode (string): radar code as 3-letter string (e.g. 'sas')
+    save_plot (string): user directive on whether or not to output plot as a saved .png
+    """
+    parser = argparse.ArgumentParser()
+
+    # For now, we require a particular station to be requested
+    parser.add_argument("-r", "--radar_code", 
+                        help="SuperDARN Station code to produce fan plot for (e.g. sas)",
+                        type=str)
+
+    parser.add_argument("-f", "--rri_file", help="Specified RRI file to plot ephemeris",
+                        type=str)
+
+    parser.add_argument("-s", "--save_plot", help="Whether to save the plot instead of showing (y/n)",
+                        action="store_true", default=False)
+    args = parser.parse_args()
+    rrifile = args.rri_file
+    rcode = args.radar_code
+    save_plot = args.save_plot
+    return rrifile, rcode, save_plot
+
+def process_args(rrifile, rcode, save_plot):
+    """
+    Encapsulates the necessary logic to decide what to do based on 
+    command-line arguments.
+    """
+    save = True if save_plot=='y' else False
+
+    if rrifile is not None:
+        if rcode is not None:
+            print("Attempting to use 'plot_fan_rri'")
+            #TODO: validate input
+            try:
+                lons, lats, alts, ephtimes = datautils.get_rri_ephemeris(rrifile)
+            except Exception:
+                print("Problem opening the RRI file - aborting!")
+                return None
+            try:
+                plot_fan_rri(lons, lats, alts, ephtimes, codes=[rcode], save=save)
+            except Exception:
+                print("Problem plotting fanplot")            
+        else:
+            print("Attempting to print the satellite ephemeris nicely")
+
+            params = []
+            print("Width scale factor? [Enter for default 1.0x]")
+            params.append(raw_input()) 
+            print("Height scale factor? [Enter for default 1.0x]")
+            params.append(raw_input())
+            print("Longitudinal center position offset? [Enter for default 0.0 deg]")
+            params.append(raw_input())
+            print("Latitudinal center position offset? [Enter for default 0.0 deg]")
+            params.append(raw_input())
+            for param in params:
+                if (type(param) not in [int, float]) or param < 0:
+                    param = 0
+            w_mult, h_mult, long_offs, lat_offs = params[:]
+            plot_sat_ephemeris(lons, lats, alts, ephtimes, save=save, w_mult=w_mult,
+                                h_mult=h_mult, long_offs=long_offs, lat_offs=lat_offs)
+            
+
+    return None 
+
+def plot_options():
+    """
+    Function to do the queries for additional information for plot_sat_ephemeris
+    """
+    print("Multiplicative factor for window width [Default 1.0]: ")
+    w_mult = input()
+    print("Multiplicative factor for window height [Default 1.0]: ")
+    w_height = input()
+    print("Longitude offset for plot center with respect to sat track [Default 0 deg]: ")
+    long_offs = input()
+    print("Latitude offset for plot center with respect to sat track [Default 0 deg]: ")
+    lat_offs = input()
+    
+    
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+
 if __name__=="__main__":
-    path, fname = datautils.initialize_data()
-    lons, lats, alts, ephtimes = datautils.get_rri_ephemeris(fname)
-    plot_fov_sat("Saskatoon", lons, lats, date=datautils.ephem_to_datetime(ephtimes[0])) 
+    fname, rcode, save_plot = get_args()
+    #path, fname = datautils.initialize_data()
+    #lons, lats, alts, ephtimes = datautils.get_rri_ephemeris(fname)
+    #plot_fov_sat("Saskatoon", lons, lats, date=datautils.ephem_to_datetime(ephtimes[0])) 
+    print("Args were \t fname: {0},\trcode: {1}\tsave_plot: {2}".format(fname, rcode, save_plot))
+    process_args(fname, rcode, save_plot)

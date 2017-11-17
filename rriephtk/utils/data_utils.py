@@ -137,9 +137,11 @@ def initialize_data():
         # directory (using os.system so that if nothing is there it doesnt crash the 
         # script).
         os.system("fusermount -uq " + RRIEPHTK_REMOTE)
+        print "Accessing data files on maxwell, enter your username: "
+        username = raw_input()
         print "Accessing data files on maxwell, enter your password: "
         output = subprocess.check_output(["sshfs", 
-                        "fairbairn@maxwell.usask.ca:/data/", RRIEPHTK_REMOTE])
+                        username+"@maxwell.usask.ca:/data/", RRIEPHTK_REMOTE])
         data_path = RRIEPHTK_REMOTE + "/" # Set the data path to where we just mounted Maxwell data
     return data_path, dat_fname
 
