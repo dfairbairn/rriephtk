@@ -18,8 +18,7 @@ import matplotlib.pyplot as plt
 import logging
 
 import __init__ # 
-import rriephtk.utils.data_utils as data_utils
-from rriephtk.utils.data_utils import ephem_to_datetime, ephems_to_datetime 
+from ..utils import data_utils, ephem_to_datetime, ephems_to_datetime
 
 import magnet_data
 
@@ -505,7 +504,7 @@ def get_bvec(lon, lat, altitude, time):
     from davitpy.models import igrf
     from davitpy import utils
     itype = 1 #Geodetic coordinates
-    date = utils.dateToDecYear(time) # decimal year
+    date = data_utils.dateToDecYear(time) # decimal year
     alt = altitude
     stp = 1. #
     # The IGRF function takes a grid of latitude and longitude points for which
@@ -568,7 +567,7 @@ def get_igrf(lons, lats, alts, ephtimes):
     times = ephems_to_datetime(ephtimes)
     B_igrf = np.zeros((len(times),3))
     for i, time in enumerate(times):
-        date = utils.dateToDecYear(time)
+        date = data_utils.dateToDecYear(time)
         lon = lons[i]
         lat = lats[i]
         alt = alts[i]
@@ -1070,7 +1069,7 @@ if __name__=="__main__":
     # Some extra stuff I want to do for analysis at the bottom here...
     # Load Rob Gillies' ephemeris he used for his ray trace plots
     Roblons, Roblats, Robalts = data_utils.load_rob_ephemeris(
-                                data_utils.RRITK_DATA + '/satcoords_20160418.txt')
+                                data_utils.RRIEPHTK_DATA + '/satcoords_20160418.txt')
     # Load ephemeris from 20160418 for ray trace plots and plasma
     # intersection testing
     lons18, lats18, alts18, ephtimes18 = data_utils.get_rri_ephemeris(
@@ -1123,7 +1122,7 @@ if __name__=="__main__":
         angs_apprx.append(ang_apprx)
     
     datarr, datlats = data_utils.load_density_profile(
-                        data_utils.RRITK_DATA + '/20160418-densities.txt')  
+                        data_utils.RRIEPHTK_DATA + '/20160418-densities.txt')  
     tecs, mean_bcs, ql_integrals, phase_integrals = faraday_pass(
                 lons18, lats18, alts18, ephtimes18, datarr, datlats)
     plt.plot(phase_integrals); plt.show()

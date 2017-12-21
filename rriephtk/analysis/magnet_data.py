@@ -7,8 +7,7 @@ For looking at magnetometer data from ePOP and computing magnetic field model
 predictions.
 
 """
-import __init__
-import rriephtk.utils.data_utils as data_utils
+from ..utils import data_utils
 import analysis_tools
 import h5py
 import numpy as np
@@ -202,7 +201,7 @@ def get_igrf(lons,lats,alts,ephtimes):
     times = data_utils.ephems_to_datetime(ephtimes)
     B_igrf = np.zeros((len(times),3))
     for i, time in enumerate(times):
-        date = utils.dateToDecYear(time)
+        date = data_utils.dateToDecYear(time)
         lon = lons[i]
         lat = lats[i]
         alt = alts[i]

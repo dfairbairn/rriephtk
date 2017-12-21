@@ -14,7 +14,11 @@ import os
 import subprocess
 
 import datetime as dt
-import logging 
+#import logging 
+#logging.basicConfig(level=logging.DEBUG,
+#    format='%(levelname)s %(asctime)s: %(message)s', 
+#    datefmt='%m/%d/%Y %I:%M:%S %p')
+#logger = logging.getLogger(__name__)
 
 RRIEPHTK_ROOT = os.path.dirname(os.path.realpath(__file__)) + "/../../"
 RRIEPHTK_DATA = RRIEPHTK_ROOT + "/data"
@@ -22,10 +26,10 @@ RRIEPHTK_OUTPUT = RRIEPHTK_DATA + "/output"
 RRIEPHTK_REMOTE = RRIEPHTK_DATA + "/remote"
 DEFAULT_RRI = "RRI_20160418_222759_223156_lv1_v2.h5"
 
-logging.debug("Output of __file__: {0}".format(__file__))
-logging.debug("Output of path to __file__: {0}".format(
-                os.path.dirname(os.path.realpath(__file__))))
-logging.debug("RRIEPHTK_ROOT: {0}".format(RRIEPHTK_ROOT))
+#logger.debug("Output of __name__: {0}".format(__name__))
+#logger.debug("Output of __file__: {0}".format(__file__))
+#logger.debug("Output of path to __file__: {0}".format(os.path.dirname(os.path.realpath(__file__))))
+#logger.debug("RRIEPHTK_ROOT: {0}".format(RRIEPHTK_ROOT))
 
 class FileLineWrapper(object):
     """
@@ -83,7 +87,7 @@ class JDEphemerisTime(float):
             replace use of these by converting to datetimes in get_rri_ephemeris **
     """
     def __new__(cls, num):
-        logging.debug("num: {0}\ntype of num: {1}".format(num, type(num)))
+        #logger.debug("num: {0}\ntype of num: {1}".format(num, type(num)))
         return super(JDEphemerisTime, cls).__new__(cls, num) 
 
     def to_datetime(self):
@@ -354,12 +358,12 @@ def open_errlog(data_path, rcode, date):
 
     if os.path.exists(fpath + fname_bz2):
         file_errl = bz2.BZ2File(fpath + fname_bz2)
-        logging.debug("Uses bz2 errlog file.")
+        #logger.debug("Uses bz2 errlog file.")
     elif os.path.exists(fpath + fname_reg):
-        logging.debug("Uses non-bz2 errlog file.")
+        #logger.debug("Uses non-bz2 errlog file.")
         file_errl = open(fpath + fname_reg)
     else:
-        logging.error("No ERRLOG file found!") 
+        logger.error("No ERRLOG file found!") 
         return None
     return FileLineWrapper(file_errl)
 

@@ -30,9 +30,9 @@ import datetime as dt
 import numpy as np
 
 import __init__
-import rriephtk.utils.data_utils as data_utils
-import rriephtk.utils.range_cells as range_cells
-from rriephtk.utils.data_utils import two_pad
+from ..utils import data_utils
+from ..utils import findRangeCell
+from ..utils import two_pad
 
 OUTPUT_DIR = data_utils.RRIEPHTK_OUTPUT
 

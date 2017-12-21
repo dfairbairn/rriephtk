@@ -1,29 +1,30 @@
-"""
-rritk
------
+#import os
+#import ConfigParser as cp
+#parsing config files
+#config = core.parse_config_file()
+#hdw_files_path = config.get("core","hdw_files_path")
+#hdw_info = core.parse_hdw_files(hdw_files_path)
 
-A toolkit for analyzing RRI experiments.
-
-"""
 import logging
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+__all__ = ["utils", "analysis", "plotting", "conjunctions"]
 
 try:
-    import utils
+    from . import utils
 except Exception as e:
     logging.exception("Problem importing utils: {0}".format(e))
 
 try:
-    import conjunctions 
+    from . import conjunctions
 except Exception as e:
     logging.exception("Problem importing conjunctions: {0}".format(e))
 
 try:
-    import analysis 
+    from . import analysis
 except Exception as e:
     logging.exception("Problem importing analysis: {0}".format(e))
 
 try:
-    import plotting 
+    from . import plotting 
 except Exception as e:
     logging.exception("Problem importing plotting: {0}".format(e))
