@@ -56,11 +56,11 @@ If you happen to have a computer with all the correct software and you have
 access to the data server, the script can be used by calling it at the 
 command line with the desired RRI data file as an additional argument:
 
-If pwd is rritk top directory (or optionally use the -i option to tell Python
+If pwd is rriephtk top directory (or optionally use the -i option to tell Python
 to enter interactive mode after running the script):
-> python rritk/conjunctions/conjunctions.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
+> python rriephtk/conjunctions/conjunctions.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
 
-> python -i rritk/conjunctions/conjunctions.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
+> python -i rriephtk/conjunctions/conjunctions.py ./data/RRI_20160401_072744_033718_lv1_v2.h5
 
 Reading the documentation and using the functions directly could work too, since it's not super externally usable yet!
 
