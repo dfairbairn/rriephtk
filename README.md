@@ -18,7 +18,9 @@ process does not exist. However, you _ought_ to be able to get it going by:
 
   ii) Setting up a virtual environment ( http://docs.python-guide.org/en/latest/dev/virtualenvs/ )
   > \> cd rriephtk
+  
   > \> virtualenv env
+  
   > \> source env/bin/activate
 
   iii) and then installing from the requirements.txt document here.
